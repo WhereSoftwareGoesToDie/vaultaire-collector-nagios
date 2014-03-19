@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+const (
+	Version = "1.0.0"
+)
+
 const DefaultParallelism = 10
 
 // Metrics about the collector run to be reported in the log at the end.
