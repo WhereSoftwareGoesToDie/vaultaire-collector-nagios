@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/anchor/bletchley/framestore"
 	"github.com/anchor/bletchley/perfdata"
 	"log"
 	"os"
@@ -31,7 +30,7 @@ func logTermination(startTime time.Time) {
 	// avoid breaking this - these lines should match the regex
 	// /metrics:([a-z_]+=[\d.])+/, with one metric per line.
 	for _, metric := range RunMetrics.Metrics() {
-		framestore.Log.Infof("%v", metric)
+		Log.Infof("%v", metric)
 	}
 }
 
@@ -46,8 +45,8 @@ func handleSignals(startTime time.Time) {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGSEGV)
 	go func() {
 		for sig := range c {
-			framestore.Log.Errorf("Caught %v, shutting down.", sig)
-			framestore.Log.Errorf("Frames may not have been flushed by libmarquise.")
+			Log.Errorf("Caught %v, shutting down.", sig)
+			Log.Errorf("Frames may not have been flushed by libmarquise.")
 			logTermination(startTime)
 			os.Exit(1)
 		}
@@ -60,7 +59,7 @@ func dieIfTimedOut(startTime time.Time, timeout time.Duration) {
 	now := time.Now()
 	delta := now.Sub(startTime)
 	if delta > timeout {
-		framestore.Log.Errorf("Timeout (%v) exceeded, terminating.", timeout)
+		Log.Errorf("Timeout (%v) exceeded, terminating.", timeout)
 		logTermination(startTime)
 		os.Exit(2)
 	}
@@ -84,7 +83,7 @@ func cleanup(startTime time.Time, writer PerfDatumWriter) {
 func main() {
 	startTime := time.Now()
 	RunMetrics = NewCollectorMetricData()
-	configFile := flag.String("cfg", "/etc/bletchley/framestore.gcfg", "Path to configuration file. This file should be in gcfg[0] format. [0] https://code.google.com/p/gcfg/")
+	configFile := flag.String("cfg", "/etc/vaultaire/nagios.gcfg", "Path to configuration file. This file should be in gcfg[0] format. [0] https://code.google.com/p/gcfg/")
 	burstMode := flag.Bool("burst-mode", false, "Write all input as "+
 		"a single DataBurst to stdout and then exit. Don't try this in "+
 		"production.")
@@ -120,9 +119,9 @@ func main() {
 		cfgPath = filepath.Join(usr.HomeDir, cfgPath)
 	}
 
-	cfg, err := framestore.InitializeFramestoreConfig(cfgPath, "import_perfdata")
+	cfg, err := InitializeConfig(cfgPath)
 	if err != nil {
-		log.Fatalf("Could not initialize framestore config from file %v: %v", cfgPath, err)
+		log.Fatalf("Could not initialize config from file %v: %v", cfgPath, err)
 	}
 
 	parallelism := DefaultParallelism
@@ -130,7 +129,7 @@ func main() {
 		parallelism = cfg.General.Parallelism
 	}
 
-	framestore.Log.Debugf("Using parallelism: %v", parallelism)
+	Log.Debugf("Using parallelism: %v", parallelism)
 	var writer PerfDatumWriter
 
 	if cfg.General.StorageBackend == "file" {
@@ -140,7 +139,7 @@ func main() {
 	}
 
 	if err != nil {
-		framestore.Log.Fatalf("Couldn't initialize writer: %v", err)
+		Log.Fatalf("Couldn't initialize writer: %v", err)
 	}
 
 	defer cleanup(startTime, writer)
@@ -180,11 +179,11 @@ func main() {
 		}
 	}
 
-	framestore.Log.Infof("Wrote %v records.", recordsWritten)
+	Log.Infof("Wrote %v records.", recordsWritten)
 	recordsMetric := fmt.Sprintf("%v", recordsWritten)
 	RunMetrics.AddMetric("records_written", recordsMetric)
 
-	framestore.Log.Debugf("Total time spent in writes (seconds): %v", float64(totalWriteTime)/1000000000.0)
-	framestore.Log.Debugf("Average time spent in writes (seconds): %v", float64(totalWriteTime)/float64(nWriteTimes)/1000000000.0)
+	Log.Debugf("Total time spent in writes (seconds): %v", float64(totalWriteTime)/1000000000.0)
+	Log.Debugf("Average time spent in writes (seconds): %v", float64(totalWriteTime)/float64(nWriteTimes)/1000000000.0)
 
 }

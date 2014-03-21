@@ -1,4 +1,4 @@
-# Configuration file for bletchley's framestore.
+# Configuration file for vaultaire-collector-nagios.
 # 
 # This file is in gcfg format[0]. It probably works like you'd expect 
 # a config file to work.
@@ -9,18 +9,16 @@
 # Number of threads/goroutines to use for processing/writing. Note that
 # this will not affect the number of CPU cores used unless GOMAXPROCS is
 # set (to something >1). 
-parallelism=10
+parallelism=1
 
 # Currently supported backends:
 #
-#  - riak
-#  - elasticsearch
 #  - file (DataFrame backend)
 #  - vaultaire 
 storagebackend=file
 
 # Will be created if it doesn't exist.
-logfile=/var/log/bletchley/framestore.log
+logfile=/var/log/vaultaire/nagios-collector.log
 
 # Available log levels (case-insensitive):
 #
@@ -39,25 +37,8 @@ loglevel=debug
 # Die if we've been running for longer than this (milliseconds).
 timeout=10000
 
-[riak]
-# Riak hostnames to write to, comma-separated, in hostname:port format. 
-# The port should be the one Riak's protocol buffer interface is 
-# listening on.
-riakhosts=localhost:8087
-
-# Name of bucket to write all metrics to. 
-riakbucket=nagios_perfdata_dev
-
-# What it says on the tin.
-replicationfactor=3
-
-[elasticsearch]
-# Just the hostname (will use port 9092 due to library constraints)
-host=localhost
-index=bletchley_analyze
-
 [file]
-dataframefile=bletchley_out.pb
+dataframefile=vaultaire_nagios_out.pb
 
 [vaultaire]
 # host running chateau
@@ -65,7 +46,7 @@ broker="tcp://localhost:5560"
 # seconds to wait before writing a batch of frames
 batchperiod=0.1
 # vaultaire origin to use for generated bursts
-origin="bletchley/perfdata"
+origin="nagios/perfdata"
 # enable libmarquise's internal debugging output
 marquisedebug=false
 # telemetry endpoint (a Chateau broker should be running here)
