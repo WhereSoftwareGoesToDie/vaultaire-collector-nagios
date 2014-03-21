@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/framestore"
 	"github.com/anchor/bletchley/framestore/vaultaire"
 	"github.com/anchor/bletchley/perfdata"
 )
@@ -15,7 +14,7 @@ func NewBletchleyDataFrameVaultaireWriter(broker string, batchPeriod float64, or
 	writer := new(BletchleyDataFrameVaultaireWriter)
 	writer.writer, err = vaultaire.NewVaultaireWriter(broker, batchPeriod, origin, telemetry, debug)
 	if err != nil {
-		framestore.Log.Errorf("Could not initialize connection to chateau at %v: %v", broker, err)
+		Log.Errorf("Could not initialize connection to chateau at %v: %v", broker, err)
 		return nil, err
 	}
 	return writer, nil

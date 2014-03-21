@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/anchor/bletchley/dataframe"
-	"github.com/anchor/bletchley/framestore"
 	"github.com/anchor/bletchley/perfdata"
 	"os"
 )
@@ -18,7 +17,7 @@ func NewBletchleyDataFrameFileWriter(filename string) (*BletchleyDataFrameFileWr
 	writer.filename = filename
 	writer.stream, err = os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		framestore.Log.Errorf("Could not create file %v: %v", filename, err)
+		Log.Errorf("Could not create file %v: %v", filename, err)
 		return nil, err
 	}
 	return writer, nil

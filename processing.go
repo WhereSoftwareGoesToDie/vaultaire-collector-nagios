@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/framestore"
 	"github.com/anchor/bletchley/perfdata"
 	"time"
 )
@@ -29,7 +28,7 @@ func processPerfDataRecord(written chan PerfDataWriteResult, semaphore chan int,
 	writeResult := new(PerfDataWriteResult)
 	datum, err := perfdata.NewPerfDatum(line)
 	if err != nil {
-		framestore.Log.Errorf("Error parsing record: %v", err)
+		Log.Errorf("Error parsing record: %v", err)
 		writeResult.Failed = true
 		written <- *writeResult
 		semaphore <- 1
@@ -38,7 +37,7 @@ func processPerfDataRecord(written chan PerfDataWriteResult, semaphore chan int,
 	// Record parsed, extract the individual perfdata
 	metrics, err := datum.RenderMetrics()
 	if err != nil {
-		framestore.Log.Errorf("Could not extract perfdata: %v", err)
+		Log.Errorf("Could not extract perfdata: %v", err)
 		writeResult.Failed = true
 		written <- *writeResult
 		semaphore <- 1
@@ -51,10 +50,10 @@ func processPerfDataRecord(written chan PerfDataWriteResult, semaphore chan int,
 		postTime := time.Now()
 		writeTime := postTime.UnixNano() - preTime.UnixNano()
 		writeSeconds := float64(writeTime) / 1000000000.0
-		framestore.Log.Debugf("Write took %v seconds.", writeSeconds)
+		Log.Debugf("Write took %v seconds.", writeSeconds)
 		writeResult.Times = append(writeResult.Times, writeTime)
 		if err != nil {
-			framestore.Log.Errorf("Failed to write %v: %v", metricRecord.GetKey(), err)
+			Log.Errorf("Failed to write %v: %v", metricRecord.GetKey(), err)
 		} else {
 			writeResult.RecordsWritten += 1
 		}
