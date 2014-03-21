@@ -1,4 +1,4 @@
-bletchley_import_perfdata: install
+vaultaire-collector-nagios: install
 
 install: build check
 	go install

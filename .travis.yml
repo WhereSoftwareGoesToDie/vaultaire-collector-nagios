@@ -11,4 +11,4 @@ env:
 
 script:
   - sudo cp /home/travis/gopath/bin/protoc-gen-go /usr/local/bin
-  - make all
+  - make install
