@@ -10,7 +10,7 @@ deps:
 	go get
 
 clean:
-	rm -f bletchley_import_perfdata
+	rm -f vaultaire-collector-nagios
 
 check:
 	go test	
