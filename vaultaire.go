@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/framestore/vaultaire"
+	"github.com/anchor/dataframe/framestore/vaultaire"
 	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 

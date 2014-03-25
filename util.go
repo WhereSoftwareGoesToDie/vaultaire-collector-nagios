@@ -11,8 +11,7 @@ import (
 var Log picolog.Logger
 
 // newLogger takes a populated Config object and a subpackage
-// name and returns a configured picolog.Logger with framestore
-// defaults.
+// name and returns a configured picolog.Logger.
 func newLogger(cfg Config, subpackage string) (*picolog.Logger, error) {
 	logLevel, err := picolog.ParseLogLevel(cfg.General.LogLevel)
 	if err != nil {
@@ -28,7 +27,7 @@ func newLogger(cfg Config, subpackage string) (*picolog.Logger, error) {
 }
 
 // InitializeLog takes a (populated) Config object and a subpackage name
-// and configures the global framestore logger.
+// and configures the logger.
 func InitializeLog(cfg Config, subpackage string) error {
 	var err error
 	logger, err := newLogger(cfg, subpackage)
