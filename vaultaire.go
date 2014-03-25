@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/anchor/bletchley/framestore/vaultaire"
-	"github.com/anchor/bletchley/perfdata"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 
 type BletchleyDataFrameVaultaireWriter struct {

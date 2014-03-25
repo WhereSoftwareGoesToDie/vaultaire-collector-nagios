@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/perfdata"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 	"os"
 	"testing"
 )

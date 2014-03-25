@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/dataframe"
-	"github.com/anchor/bletchley/perfdata"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/anchor/dataframe"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 
 func TestDataFrame(t *testing.T) {

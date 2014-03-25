@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/anchor/bletchley/dataframe"
-	"github.com/anchor/bletchley/perfdata"
 	"os"
+
+	"github.com/anchor/dataframe"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 
 // runBurstMode is intended for testing and/or generation of test data.

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/anchor/bletchley/dataframe"
-	"github.com/anchor/bletchley/perfdata"
 	"os"
+
+	"github.com/anchor/dataframe"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 
 type BletchleyDataFrameFileWriter struct {
