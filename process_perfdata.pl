@@ -353,10 +353,10 @@ sub process_perfdata_file {
             }
         }
 
-	my $bletchley_import_perfdata = "/usr/local/bin/bletchley_import_perfdata";
-	print_log( "Calling $bletchley_import_perfdata..." );
-	my $ret = system("cat $pdfile | $bletchley_import_perfdata -cfg /usr/local/etc/bletchleyrc");
-	print_log( "$bletchley_import_perfdata exited with return code ${ret}." );
+	my $vaultaire_collector_nagios = "/usr/bin/vaultaire-collector-nagios";
+	print_log( "Calling $vaultaire_collector_nagios..." );
+	my $ret = system("cat $pdfile | $vaultaire_collector_nagios -cfg /etc/vaultaire-nagios.gcfg");
+	print_log( "$vaultaire_collector_nagios exited with return code ${ret}." );
 
         print_log( "$count lines processed", 1 );
 
