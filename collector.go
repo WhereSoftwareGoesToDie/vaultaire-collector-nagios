@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/anchor/bletchley/perfdata"
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 	"log"
 	"os"
 	"os/signal"
@@ -89,7 +89,7 @@ func main() {
 		"production.")
 
 	flag.Usage = func() {
-		helpMessage := "bletchley_import_perfdata will write " +
+		helpMessage := "vaultaire-collector-nagios will write " +
 			"Nagios-format perfdata (passed on stdin) to vaultaire\n\n" +
 			fmt.Sprintf("Usage: %s [options]\n\n", os.Args[0]) +
 			"Options:\n\n"
