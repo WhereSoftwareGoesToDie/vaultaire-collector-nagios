@@ -3,15 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 	"log"
 	"os"
 	"os/signal"
-	"os/user"
-	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/anchor/vaultaire-collector-nagios/perfdata"
 )
 
 const (
@@ -111,14 +110,6 @@ func main() {
 	handleSignals(startTime)
 
 	cfgPath := *configFile
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if !filepath.IsAbs(cfgPath) {
-		cfgPath = filepath.Join(usr.HomeDir, cfgPath)
-	}
-
 	cfg, err := InitializeConfig(cfgPath)
 	if err != nil {
 		log.Fatalf("Could not initialize config from file %v: %v", cfgPath, err)
