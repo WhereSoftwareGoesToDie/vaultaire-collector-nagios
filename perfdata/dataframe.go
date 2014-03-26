@@ -6,15 +6,10 @@ import (
 	"time"
 )
 
-const (
-	BletchleyDataSourcePrefix = "perfdata/nagios"
-)
-
 // Return a struct of key/value pairs in the form of a slice of pointers
 // to dataframe.DataFrame_Tags.
 func getDataSource(datum RenderedPerfDatumValue, unit UOM) []*dataframe.DataFrame_Tag {
 	source := make([]*dataframe.DataFrame_Tag, 0)
-	source = append(source, dataframe.NewDataFrameTag("origin", BletchleyDataSourcePrefix))
 	source = append(source, dataframe.NewDataFrameTag("hostname", datum.Hostname))
 	source = append(source, dataframe.NewDataFrameTag("service_name", datum.ServiceName))
 	source = append(source, dataframe.NewDataFrameTag("metric", datum.Metric))
