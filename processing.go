@@ -50,7 +50,6 @@ func processPerfDataRecord(written chan PerfDataWriteResult, semaphore chan int,
 		postTime := time.Now()
 		writeTime := postTime.UnixNano() - preTime.UnixNano()
 		writeSeconds := float64(writeTime) / 1000000000.0
-		Log.Debugf("Write took %v seconds.", writeSeconds)
 		writeResult.Times = append(writeResult.Times, writeTime)
 		if err != nil {
 			Log.Errorf("Failed to write %v: %v", metricRecord.GetKey(), err)
