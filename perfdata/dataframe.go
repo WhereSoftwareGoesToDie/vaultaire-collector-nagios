@@ -52,7 +52,7 @@ func NewDataFrame(datum RenderedPerfDatumValue) (*dataframe.DataFrame, error) {
 	case uom == Counter:
 		payload := dataframe.DataFrame_EMPTY
 		frame.Payload = &payload
-	// If we're given an empty string as UOM (slackers), we assume
+	// If we're given an empty string as UOM, we assume
 	// it's an unadorned float and parse it accordingly. If that
 	// fails, we treat it as empty/'counter'.
 	case uom == NullUnit:
