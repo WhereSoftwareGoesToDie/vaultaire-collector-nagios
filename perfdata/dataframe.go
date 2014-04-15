@@ -31,7 +31,6 @@ func NewDataFrame(datum RenderedPerfDatumValue) (*dataframe.DataFrame, error) {
 	if err != nil {
 		return nil, err
 	}
-	dataSource := getDataSource(datum, uom)
 	switch {
 	case isMicrosecondUOM(uom):
 		value, err := parseMicroseconds(rawValue, uom)
@@ -41,6 +40,7 @@ func NewDataFrame(datum RenderedPerfDatumValue) (*dataframe.DataFrame, error) {
 		payload := dataframe.DataFrame_REAL
 		frame.Payload = &payload
 		frame.ValueMeasurement = &value
+		uom = Microseconds
 	case isByteUOM(uom):
 		value, err := parseBytes(rawValue, uom)
 		if err != nil {
@@ -49,6 +49,7 @@ func NewDataFrame(datum RenderedPerfDatumValue) (*dataframe.DataFrame, error) {
 		payload := dataframe.DataFrame_NUMBER
 		frame.Payload = &payload
 		frame.ValueNumeric = &value
+		uom = Bytes
 	case uom == Counter:
 		payload := dataframe.DataFrame_EMPTY
 		frame.Payload = &payload
@@ -66,6 +67,7 @@ func NewDataFrame(datum RenderedPerfDatumValue) (*dataframe.DataFrame, error) {
 			frame.ValueMeasurement = &value
 		}
 	}
+	dataSource := getDataSource(datum, uom)
 	frame.Source = dataSource
 	frame.Timestamp = &timestamp
 	return frame, nil
