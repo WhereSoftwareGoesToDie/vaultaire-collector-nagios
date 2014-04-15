@@ -37,7 +37,7 @@ func processPerfDataRecord(written chan PerfDataWriteResult, semaphore chan int,
 	// Record parsed, extract the individual perfdata
 	metrics, err := datum.RenderMetrics()
 	if err != nil {
-		Log.Errorf("Could not extract perfdata: %v", err)
+		Log.Errorf("Could not extract perfdata from %v: %v", line, err)
 		writeResult.Failed = true
 		written <- *writeResult
 		semaphore <- 1
