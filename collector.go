@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	Version = "1.0.2"
+	Version = "2.0.0alpha1"
 )
 
 const DefaultParallelism = 10
