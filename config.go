@@ -12,16 +12,13 @@ type Config struct {
 		StorageBackend string
 		LogFile        string
 		LogLevel       string
-		// Kill ourselves if we run longer than this 
+		// Kill ourselves if we run longer than this
 		// (milliseconds).
 		Timeout int
 	}
 	Vaultaire struct {
-		Broker        string
-		BatchPeriod   float64
-		Origin        string
-		MarquiseDebug bool
-		TelemetryEndpoint string
+		// Namespace for the Marquise daemon.
+		Namespace string
 	}
 	File struct {
 		DataFrameFile string
