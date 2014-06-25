@@ -1,16 +1,26 @@
-language: go
-
-go:
-  - 1.2
-  - 1.1
-
-install:
-  - ./bin/install_deps.sh
-  - go get
+language: haskell
 
 env:
-  - PATH=$GOPATH/bin:$PATH
+  - UBUNTU_RELEASE=saucy
+  - UBUNTU_RELEASE=trusty
+
+before_install:
+  - sudo apt-get install cabal-install ghc happy
+
+install:
+  - cabal update
+  - mkdir deps
+  - cabal sandbox init
+  - cd deps
+  - git clone https://github.com/anchor/vaultaire
+  - git clone https://github.com/anchor/nagios-perfdata
+  - cd ..
+  - cabal sandbox add-source ./deps/vaultaire
+  - cabal sandbox add-source ./deps/nagios-perfdata
+  - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 script:
-  - sudo cp /home/travis/gopath/bin/protoc-gen-go /usr/local/bin
-  - make install
+  - cabal configure
+  - cabal build
+  - cabal test
+  - cabal sdist
