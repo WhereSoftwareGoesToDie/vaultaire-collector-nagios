@@ -28,9 +28,11 @@ install:
   - cd deps
   - git clone https://github.com/anchor/vaultaire
   - git clone https://github.com/anchor/nagios-perfdata
+  - git clone https://github.com/anchor/rados-haskell
   - cd ..
   - cabal sandbox add-source ./deps/vaultaire
   - cabal sandbox add-source ./deps/nagios-perfdata
+  - cabal sandbox add-source ./deps/rados-haskell
   - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 script:
