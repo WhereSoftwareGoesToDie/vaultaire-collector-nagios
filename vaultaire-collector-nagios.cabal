@@ -20,7 +20,9 @@ executable vaultaire-collector-nagios
                        optparse-applicative,
                        bytestring,
                        cereal,
-                       mtl
+                       mtl,
+                       text,
+                       unordered-containers
   -- other-extensions:    
   build-depends:       base >=4.6
   hs-source-dirs:      src

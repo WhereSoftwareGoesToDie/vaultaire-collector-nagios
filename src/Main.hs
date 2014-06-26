@@ -16,6 +16,9 @@ import Control.Monad.Reader
 import Control.Arrow
 import Data.Word
 import Data.Serialize
+import Data.HashMap.Strict (HashMap, fromList)
+import qualified Data.Text as T
+import Data.Text (Text)
 
 import Data.Nagios.Perfdata
 import Marquise.Client
@@ -56,6 +59,14 @@ collectorOptionParser =
         progDesc "Vaultaire collector for Nagios perfdata files" <>
         header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire")
 
+getSourceDict :: Perfdata -> String -> Either String SourceDict
+getSourceDict datum metric = 
+    makeSourceDict . fromList $ buildList datum metric
+  where
+    buildList datum metric = 
+        let host = perfdataHostname datum in
+        let service = C.unpack $ perfdataServiceDescription datum in
+        zip (map T.pack ["host", "metric", "service"]) (map T.pack [host, metric, service])
 
 getMetricId :: Perfdata -> String -> S.ByteString
 getMetricId datum metric = 
