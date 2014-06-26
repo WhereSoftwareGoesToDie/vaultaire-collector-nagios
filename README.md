@@ -2,17 +2,19 @@ vaultaire-collector-nagios
 ==========================
 
 vaultaire-collector-nagios reads Nagios perfdata from stdin and writes it
-to vaultaire (and potentially other backends, though only one is
-currently enabled). 
+to [Vaultaire](https://github.com/anchor/vaultaire).
 
+operation
+=========
 
-usage
-=====
-
-Copy bletchleyrc.sample to ~/.bletchleyrc (or wherever you like, just 
-modify the invocation of vaultaire-collector-nagios to pass -cfg <path>).
-
-Drop the modified process_perfdata.pl in place of the one used to write
-metrics to RRD. By default, the supplied process_perfdata.pl will look
-for the bletchley config file at /usr/local/etc/bletchleyrc.
-
+There are a few ways to set this up; at its core the only thing that
+needs to be done is to obtain Nagios perfdata files somehow and pipe
+them into this collector. One way to do this if you currently use
+pnp4nagios/npcd for perfdata processing is to add a line to the
+process_perfdata.pl script invoking this program - an example of such a
+modification is included in this repository. Of course, this is quite
+awful; there will be better ways of doing this in the future (although
+if you are using
+[mod_gearman](https://labs.consol.de/nagios/mod-gearman/) then [there is
+a better
+alternative](https://github.com/anchor/vaultaire-collector-nagios-gearman)).
