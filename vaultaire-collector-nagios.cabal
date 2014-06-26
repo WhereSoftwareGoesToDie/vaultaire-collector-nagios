@@ -20,7 +20,8 @@ executable vaultaire-collector-nagios
   main-is:             Main.hs
   build-depends:       nagios-perfdata,
                        vaultaire,
-                       optparse-applicative
+                       optparse-applicative,
+                       bytestring
   -- other-extensions:    
   build-depends:       base >=4.6
   hs-source-dirs:      src

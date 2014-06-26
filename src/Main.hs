@@ -3,6 +3,10 @@
 module Main where
 
 import Options.Applicative
+import qualified Data.ByteString as S
+import System.IO
+import System.IO.Error
+import Control.Exception
 
 import Data.Nagios.Perfdata
 import Marquise.Client
@@ -27,9 +31,17 @@ collectorOptionParser =
         progDesc "Vaultaire collector for Nagios perfdata files" <>
         header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire")
 
-collector :: CollectorOptions -> IO ()
-collector opts@CollectorOptions{..} = do
-    error "nyi"
+handleLines :: CollectorOptions -> IO ()
+handleLines op@CollectorOptions{..} = do
+    line <- try S.getLine
+    case line of
+        Left err ->
+            if isEOFError err
+                then return ()
+                else hPutStrLn stderr $ "Error reading perfdata: " ++ (show err)
+        Right l -> do
+            S.putStrLn l
+            handleLines op
 
 main :: IO ()
-main = execParser collectorOptionParser >>= collector
+main = execParser collectorOptionParser >>= handleLines
