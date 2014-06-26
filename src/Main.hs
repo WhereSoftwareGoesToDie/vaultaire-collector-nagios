@@ -66,7 +66,7 @@ getSourceDict datum metric =
     buildList datum metric = 
         let host = perfdataHostname datum in
         let service = C.unpack $ perfdataServiceDescription datum in
-        zip (map T.pack ["host", "metric", "service"]) (map T.pack [host, metric, service])
+        zip (map T.pack ["host", "metric", "service", "_float"]) (map T.pack [host, metric, service, "1"])
 
 getMetricId :: Perfdata -> String -> S.ByteString
 getMetricId datum metric = 
