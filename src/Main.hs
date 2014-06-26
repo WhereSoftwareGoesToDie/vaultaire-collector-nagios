@@ -74,8 +74,9 @@ unpackMetrics datum =
 processLine :: ByteString -> CollectorMonad ()
 processLine line = do
     CollectorState{..} <- ask
+    liftIO $ putStrLn $ "Decoding line: " ++ show line
     liftIO $ case perfdataFromDefaultTemplate line of
-        Left err -> hPutStrLn stderr $ "Error decoding perfdata: " ++ show err
+        Left err -> hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
             putStrLn "Decoded datum."
             mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)

@@ -355,7 +355,7 @@ sub process_perfdata_file {
 
 	my $vaultaire_collector_nagios = "/usr/bin/vaultaire-collector-nagios";
 	print_log( "Calling $vaultaire_collector_nagios..." );
-	my $ret = system("cat $pdfile | $vaultaire_collector_nagios -cfg /etc/vaultaire-nagios.gcfg");
+	my $ret = system("cat $pdfile | $vaultaire_collector_nagios");
 	print_log( "$vaultaire_collector_nagios exited with return code ${ret}." );
 
         print_log( "$count lines processed", 1 );
