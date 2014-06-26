@@ -66,6 +66,10 @@ getSourceDict datum metric =
     buildList datum metric = 
         let host = perfdataHostname datum in
         let service = C.unpack $ perfdataServiceDescription datum in
+        -- host, metric and service are collectively the primary key for
+        -- this metric. As the nagios-perfdata package currently treats
+        -- all values as floats, we also specify this as metadata for
+        -- the presentation layer.
         zip (map T.pack ["host", "metric", "service", "_float"]) (map T.pack [host, metric, service, "1"])
 
 getMetricId :: Perfdata -> String -> S.ByteString
