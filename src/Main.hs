@@ -74,13 +74,25 @@ getMetricId datum metric =
     let service = S.unpack $ perfdataServiceDescription datum in
     "host:" +.+ C.pack host +.+ ",metric:" +.+ C.pack metric +.+ ",service:" +.+ S.pack service +.+ ","
 
+getAddress :: Perfdata -> String -> Address
+getAddress p = hashIdentifier . getMetricId p
+
 unpackMetrics :: Perfdata -> [(Address,Word64)]
 unpackMetrics datum = 
     map ((getAddress datum . fst) &&& (extractValueWord . snd)) (perfdataMetrics datum)
   where
-    getAddress p = hashIdentifier . getMetricId p
     extractValueWord = either (const 0) id . extractValueWordEither
     extractValueWordEither = decode . encode . flip metricValueDefault 0.0
+
+queueDatumSourceDict :: SpoolFiles -> Perfdata -> IO ()
+queueDatumSourceDict spool datum = do
+    let metrics = map fst $ perfdataMetrics datum
+    mapM_ (uncurry maybeUpdate) $ zip (map (getAddress datum) metrics) (map (getSourceDict datum) metrics)
+  where
+    maybeUpdate addr sd =
+        case sd of
+            Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
+            Right dict -> queueSourceDictUpdate spool addr dict
 
 processLine :: ByteString -> CollectorMonad ()
 processLine line = do
@@ -91,6 +103,7 @@ processLine line = do
         Right datum -> do
             putStrLn "Decoded datum."
             mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
+            queueDatumSourceDict collectorSpoolFiles datum
   where
     sendPoint spool ts addr = queueSimple spool addr ts
     datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp
