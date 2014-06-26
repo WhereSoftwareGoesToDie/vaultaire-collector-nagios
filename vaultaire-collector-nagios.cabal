@@ -19,7 +19,8 @@ executable vaultaire-collector-nagios
                        vaultaire,
                        optparse-applicative,
                        bytestring,
-                       cereal
+                       cereal,
+                       mtl
   -- other-extensions:    
   build-depends:       base >=4.6
   hs-source-dirs:      src

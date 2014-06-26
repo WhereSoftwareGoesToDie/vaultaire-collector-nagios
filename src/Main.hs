@@ -1,15 +1,18 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Main where
 
 import Options.Applicative
+import Data.ByteString (ByteString)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
 import System.IO
 import System.IO.Error
 import Control.Exception
 import Control.Monad
+import Control.Monad.Reader
 import Control.Arrow
 import Data.Word
 import Data.Serialize
@@ -23,6 +26,19 @@ import Marquise.Client
 data CollectorOptions = CollectorOptions {
     optNamespace :: String
 }
+
+data CollectorState = CollectorState {
+    collectorOpts :: CollectorOptions,
+    collectorSpoolFiles :: SpoolFiles
+}
+
+newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
+
+runCollector :: CollectorOptions -> CollectorMonad a -> IO a
+runCollector op@CollectorOptions{..} (CollectorMonad act) = do
+    files <- createSpoolFiles optNamespace
+    runReaderT act $ CollectorState op files
 
 opts :: Parser CollectorOptions
 opts = CollectorOptions
@@ -55,15 +71,25 @@ unpackMetrics datum =
     extractValueWord = either (const 0) id . extractValueWordEither
     extractValueWordEither = decode . encode . flip metricValueDefault 0.0
 
-handleLines :: CollectorOptions -> IO ()
-handleLines op@CollectorOptions{..} = do
-    line <- try S.getLine
+processLine :: ByteString -> CollectorMonad ()
+processLine line = do
+    CollectorState{..} <- ask
+    liftIO $ case perfdataFromDefaultTemplate line of
+        Left err -> hPutStrLn stderr $ "Error decoding perfdata: " ++ show err
+        Right datum -> do
+            putStrLn "Decoded datum."
+            mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
+  where
+    sendPoint spool ts addr = queueSimple spool addr ts
+    datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp
+
+handleLines :: CollectorMonad ()
+handleLines = do
+    line <- liftIO $ try S.getLine
     case line of
         Left err ->
-            unless (isEOFError err) $ hPutStrLn stderr $ "Error reading perfdata: " ++ show err
-        Right l -> do
-            C.putStrLn l
-            handleLines op
+            unless (isEOFError err) $ liftIO . hPutStrLn stderr $ "Error reading perfdata: " ++ show err
+        Right l -> processLine l >> handleLines
 
 main :: IO ()
-main = execParser collectorOptionParser >>= handleLines
+main = execParser collectorOptionParser >>= flip runCollector handleLines
