@@ -4,6 +4,13 @@ vaultaire-collector-nagios
 vaultaire-collector-nagios reads Nagios perfdata from stdin and writes it
 to [Vaultaire](https://github.com/anchor/vaultaire).
 
+dependencies
+============
+
+ - [Vaultaire](https://github.com/anchor/vaultaire) (for the Marquise
+   daemon)
+ - [nagios-perfdata](https://github.com/anchor/nagios-perfdata)
+
 operation
 =========
 
