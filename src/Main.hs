@@ -59,6 +59,9 @@ collectorOptionParser =
         progDesc "Vaultaire collector for Nagios perfdata files" <>
         header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire")
 
+-- | Returns the Vaultaire SourceDict for the supplied metric in datum,
+-- or an error if the relevant values have invalid characters (',' or
+-- ':'). 
 getSourceDict :: Perfdata -> String -> Either String SourceDict
 getSourceDict datum metric = 
     makeSourceDict . fromList $ buildList datum metric
@@ -72,15 +75,20 @@ getSourceDict datum metric =
         -- the presentation layer.
         zip (map T.pack ["host", "metric", "service", "_float"]) (map T.pack [host, metric, service, "1"])
 
+-- | Returns the unique identifier for the named metric in the supplied
+-- perfdatum. This is used to calculate the address. 
 getMetricId :: Perfdata -> String -> S.ByteString
 getMetricId datum metric = 
     let host = perfdataHostname datum in
     let service = S.unpack $ perfdataServiceDescription datum in
     "host:" +.+ C.pack host +.+ ",metric:" +.+ C.pack metric +.+ ",service:" +.+ S.pack service +.+ ","
 
+-- | Returns the Vaultaire address for the specified metric. 
 getAddress :: Perfdata -> String -> Address
 getAddress p = hashIdentifier . getMetricId p
 
+-- | Given a Perfdata object, extract each metric into a list of
+-- (address,value) tuples.
 unpackMetrics :: Perfdata -> [(Address,Word64)]
 unpackMetrics datum = 
     map ((getAddress datum . fst) &&& (extractValueWord . snd)) (perfdataMetrics datum)
@@ -88,6 +96,8 @@ unpackMetrics datum =
     extractValueWord = either (const 0) id . extractValueWordEither
     extractValueWordEither = decode . encode . flip metricValueDefault 0.0
 
+-- | Queue updates to the metadata associated with each metric in the
+-- supplied perfdatum.
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> IO ()
 queueDatumSourceDict spool datum = do
     let metrics = map fst $ perfdataMetrics datum
@@ -98,6 +108,9 @@ queueDatumSourceDict spool datum = do
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
 
+-- | Given a line formatted according to the standard Nagios perfdata
+-- template, a) queue it for writing to Vaultaire and b) queue an update
+-- for each metric's metadata.
 processLine :: ByteString -> CollectorMonad ()
 processLine line = do
     CollectorState{..} <- ask
