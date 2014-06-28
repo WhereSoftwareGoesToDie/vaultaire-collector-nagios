@@ -81,7 +81,11 @@ getSourceDict datum metric =
         -- this metric. As the nagios-perfdata package currently treats
         -- all values as floats, we also specify this as metadata for
         -- the presentation layer.
-        zip (map T.pack ["host", "metric", "service", "_float"]) (map T.pack [host, metric, service, "1"])
+        zip (map T.pack ["host", "metric", "service", "_float"]) (map fmtTag  [host, metric, service, "1"])
+    fmtTag = T.pack . (map ensureValid)
+    ensureValid ',' = '-'
+    ensureValid ':' = '-'
+    ensureValid x = x
 
 -- | Returns the unique identifier for the named metric in the supplied
 -- perfdatum. This is used to calculate the address. 
