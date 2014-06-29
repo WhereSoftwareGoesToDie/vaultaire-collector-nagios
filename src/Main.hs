@@ -137,6 +137,7 @@ processLine line = do
     sendPoint spool ts addr = queueSimple spool addr ts
     datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp
 
+-- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
 handleLines :: CollectorMonad ()
 handleLines = do
     line <- liftIO $ try S.getLine
