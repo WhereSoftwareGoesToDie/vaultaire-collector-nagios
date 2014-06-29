@@ -15,7 +15,7 @@ executable vaultaire-collector-nagios
   main-is:             Main.hs
   build-depends:       base >= 4.6,
                        nagios-perfdata,
-                       vaultaire,
+                       vaultaire-common,
                        optparse-applicative,
                        bytestring,
                        cereal,
