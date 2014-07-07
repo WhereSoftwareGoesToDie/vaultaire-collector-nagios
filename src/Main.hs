@@ -67,7 +67,8 @@ getInitialHashes hashFile = do
     fileExists <- liftIO $ doesFileExist hashFile
     getHashes fileExists
         where
-            getHashes False = newEmptyMVar            
+            getHashes False = do
+                newMVar (fromList [])
             getHashes True = do
                 initRawHashes <- B.decodeFile hashFile
                 newMVar (fromList initRawHashes)
@@ -150,11 +151,11 @@ unpackMetrics datum =
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     collectorState <- ask
-    hashes <- liftIO $ takeMVar $ collectorHashes collectorState
+    hashes <- liftIO $ readMVar $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
     let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
     let newHashmap = union (fromList hashChanges) hashes
-    liftIO $ putMVar (collectorHashes collectorState) newHashmap
+    liftIO $ modifyMVar_ (collectorHashes collectorState) (\_ -> return newHashmap)
     liftIO $ mapM_ (uncurry maybeUpdate) updates
     liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
 --    mapM_ (uncurry maybeUpdate) $ zip (map (getAddress datum) metrics) (map (getSourceDict datum) metrics)
