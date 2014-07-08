@@ -23,7 +23,6 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import Control.Arrow
-import Control.Concurrent.MVar
 import Data.Word
 import Data.Serialize
 import Data.HashMap.Strict (lookup, HashMap, fromList, toList, union)
@@ -33,6 +32,7 @@ import Data.Hashable
 import qualified Data.Binary as B
 import Data.Maybe
 import Prelude hiding(lookup)
+import Data.IORef
 
 import Data.Nagios.Perfdata
 import Marquise.Client
@@ -49,7 +49,7 @@ data CollectorOptions = CollectorOptions {
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
     collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: MVar (HashMap String Int),
+    collectorHashes :: IORef (HashMap String Int),
     collectorHashFile :: FilePath
 }
 
@@ -62,16 +62,16 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     initialHashes <- getInitialHashes optHashFile
     runReaderT act $ CollectorState op files initialHashes optHashFile
 
-getInitialHashes :: FilePath -> IO (MVar (HashMap String Int))
+getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
 getInitialHashes hashFile = do
-    fileExists <- liftIO $ doesFileExist hashFile
+    fileExists <- doesFileExist hashFile
     getHashes fileExists
         where
             getHashes False = do
-                newMVar (fromList [])
+                newIORef (fromList [])
             getHashes True = do
                 initRawHashes <- B.decodeFile hashFile
-                newMVar (fromList initRawHashes)
+                newIORef (fromList initRawHashes)
 
 
 opts :: Parser CollectorOptions
@@ -151,11 +151,11 @@ unpackMetrics datum =
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     collectorState <- ask
-    hashes <- liftIO $ readMVar $ collectorHashes collectorState
+    hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
     let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
     let newHashmap = union (fromList hashChanges) hashes
-    liftIO $ modifyMVar_ (collectorHashes collectorState) (\_ -> return newHashmap)
+    liftIO $ writeIORef (collectorHashes collectorState) newHashmap
     liftIO $ mapM_ (uncurry maybeUpdate) updates
     liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
 --    mapM_ (uncurry maybeUpdate) $ zip (map (getAddress datum) metrics) (map (getSourceDict datum) metrics)
