@@ -18,29 +18,39 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
 import System.IO
 import System.IO.Error
+import System.Directory
 import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import Control.Arrow
 import Data.Word
 import Data.Serialize
-import Data.HashMap.Strict (HashMap, fromList)
+import Data.HashMap.Strict (lookup, HashMap, fromList, toList, union)
 import qualified Data.Text as T
 import Data.Text (Text)
+import Data.Hashable
+import qualified Data.Binary as B
+import Data.Maybe
+import Prelude hiding(lookup)
+import Data.IORef
 
 import Data.Nagios.Perfdata
 import Marquise.Client
+import Vaultaire.Types
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
 
 data CollectorOptions = CollectorOptions {
-    optNamespace :: String
+    optNamespace :: String,
+    optHashFile :: FilePath
 }
 
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
-    collectorSpoolFiles :: SpoolFiles
+    collectorSpoolFiles :: SpoolFiles,
+    collectorHashes :: IORef (HashMap String Int),
+    collectorHashFile :: FilePath
 }
 
 newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
@@ -49,7 +59,19 @@ newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
 runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     files <- createSpoolFiles optNamespace
-    runReaderT act $ CollectorState op files
+    initialHashes <- getInitialHashes optHashFile
+    runReaderT act $ CollectorState op files initialHashes optHashFile
+
+getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
+getInitialHashes hashFile = do
+    fileExists <- doesFileExist hashFile
+    getHashes fileExists
+        where
+            getHashes False = do
+                newIORef (fromList [])
+            getHashes True = do
+                initRawHashes <- B.decodeFile hashFile
+                newIORef (fromList initRawHashes)
 
 opts :: Parser CollectorOptions
 opts = CollectorOptions
@@ -59,6 +81,12 @@ opts = CollectorOptions
          <> value "perfdata"
          <> metavar "MARQUISE-NAMESPACE"
          <> help "Marquise namespace to write to. Must be unique on a host basis.")
+    <*> strOption
+        (long "hash-file"
+         <> short 'f'
+         <> value "/var/tmp/collector_hash_cache"
+         <> metavar "HASH-FILE"
+         <> help "Location to read/write cached SourceDicts")
 
 collectorOptionParser :: ParserInfo CollectorOptions
 collectorOptionParser =
@@ -73,19 +101,25 @@ collectorOptionParser =
 getSourceDict :: Perfdata -> String -> Either String SourceDict
 getSourceDict datum metric = 
     makeSourceDict . fromList $ buildList datum metric
-  where
-    buildList datum metric = 
-        let host = perfdataHostname datum in
-        let service = C.unpack $ perfdataServiceDescription datum in
-        -- host, metric and service are collectively the primary key for
-        -- this metric. As the nagios-perfdata package currently treats
-        -- all values as floats, we also specify this as metadata for
-        -- the presentation layer.
-        zip (map T.pack ["host", "metric", "service", "_float"]) (map fmtTag  [host, metric, service, "1"])
-    fmtTag = T.pack . (map ensureValid)
-    ensureValid ',' = '-'
-    ensureValid ':' = '-'
-    ensureValid x = x
+
+buildList :: Perfdata -> String -> [(Text, Text)]    
+buildList datum metric = 
+    let host = perfdataHostname datum in
+    let service = C.unpack $ perfdataServiceDescription datum in
+    -- host, metric and service are collectively the primary key for
+    -- this metric. As the nagios-perfdata package currently treats
+    -- all values as floats, we also specify this as metadata for
+    -- the presentation layer.
+    zip (map T.pack ["host", "metric", "service", "_float"]) (map fmtTag  [host, metric, service, "1"])
+
+hashList :: Perfdata -> String -> Int
+hashList datum metric = hash $ buildList datum metric
+
+fmtTag = T.pack . (map ensureValid)
+
+ensureValid ',' = '-'
+ensureValid ':' = '-'
+ensureValid x = x
 
 -- | Returns the unique identifier for the named metric in the supplied
 -- perfdatum. This is used to calculate the address. 
@@ -110,11 +144,26 @@ unpackMetrics datum =
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum.
-queueDatumSourceDict :: SpoolFiles -> Perfdata -> IO ()
+queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
+    collectorState <- ask
+    hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
-    mapM_ (uncurry maybeUpdate) $ zip (map (getAddress datum) metrics) (map (getSourceDict datum) metrics)
+    let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
+    let newHashmap = union (fromList hashChanges) hashes
+    liftIO $ writeIORef (collectorHashes collectorState) newHashmap
+    liftIO $ mapM_ (uncurry maybeUpdate) updates
+    liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
   where
+    getChanges :: (HashMap String Int) -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
+    getChanges hashes metric
+        | isNothing oldHash = changes
+        | fromJust oldHash == currentHash = Nothing
+        | otherwise = changes
+            where
+                oldHash = lookup metric hashes
+                currentHash = hashList datum metric
+                changes = Just ((metric, currentHash), (getAddress datum metric, getSourceDict datum metric))
     maybeUpdate addr sd =
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
@@ -127,11 +176,11 @@ processLine :: ByteString -> CollectorMonad ()
 processLine line = do
     CollectorState{..} <- ask
     liftIO $ putStrLn $ "Decoding line: " ++ show line
-    liftIO $ case perfdataFromDefaultTemplate line of
-        Left err -> hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
+    case perfdataFromDefaultTemplate line of
+        Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
-            putStrLn "Decoded datum."
-            mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
+            liftIO $ putStrLn "Decoded datum."
+            liftIO $ mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
             queueDatumSourceDict collectorSpoolFiles datum
   where
     sendPoint spool ts addr = queueSimple spool addr ts
