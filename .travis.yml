@@ -27,10 +27,12 @@ install:
   - mkdir deps
   - cabal sandbox init
   - cd deps
-  - git clone https://github.com/anchor/vaultaire
+  - git clone https://github.com/anchor/vaultaire-common
+  - git clone https://github.com/anchor/marquise
   - git clone https://github.com/anchor/nagios-perfdata
   - cd ..
-  - cabal sandbox add-source ./deps/vaultaire
+  - cabal sandbox add-source ./deps/vaultaire-common
+  - cabal sandbox add-source ./deps/marquise
   - cabal sandbox add-source ./deps/nagios-perfdata
   - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
