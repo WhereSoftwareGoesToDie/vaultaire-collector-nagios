@@ -10,7 +10,6 @@ before_install:
   - sudo add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu/ ${UBUNTU_RELEASE} main universe"
   - sudo add-apt-repository -y ppa:hvr/ghc
   - sudo apt-get update
-  - sudo apt-get install librados-dev
   - sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER happy
   - sudo apt-get remove libzmq1
   - wget http://download.zeromq.org/zeromq-4.0.4.tar.gz
@@ -30,11 +29,9 @@ install:
   - cd deps
   - git clone https://github.com/anchor/vaultaire
   - git clone https://github.com/anchor/nagios-perfdata
-  - git clone https://github.com/anchor/rados-haskell
   - cd ..
   - cabal sandbox add-source ./deps/vaultaire
   - cabal sandbox add-source ./deps/nagios-perfdata
-  - cabal sandbox add-source ./deps/rados-haskell
   - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 script:
