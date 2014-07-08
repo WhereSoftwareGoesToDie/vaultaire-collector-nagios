@@ -73,7 +73,6 @@ getInitialHashes hashFile = do
                 initRawHashes <- B.decodeFile hashFile
                 newIORef (fromList initRawHashes)
 
-
 opts :: Parser CollectorOptions
 opts = CollectorOptions
     <$> strOption
@@ -122,8 +121,6 @@ ensureValid ',' = '-'
 ensureValid ':' = '-'
 ensureValid x = x
 
-
-
 -- | Returns the unique identifier for the named metric in the supplied
 -- perfdatum. This is used to calculate the address. 
 getMetricId :: Perfdata -> String -> S.ByteString
@@ -147,7 +144,6 @@ unpackMetrics datum =
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum.
---queueDatumSourceDict :: SpoolFiles -> Perfdata -> IO ()
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     collectorState <- ask
@@ -158,7 +154,6 @@ queueDatumSourceDict spool datum = do
     liftIO $ writeIORef (collectorHashes collectorState) newHashmap
     liftIO $ mapM_ (uncurry maybeUpdate) updates
     liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
---    mapM_ (uncurry maybeUpdate) $ zip (map (getAddress datum) metrics) (map (getSourceDict datum) metrics)
   where
     getChanges :: (HashMap String Int) -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
     getChanges hashes metric
