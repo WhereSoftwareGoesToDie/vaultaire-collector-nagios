@@ -120,8 +120,8 @@ buildList datum metric =
 hashList :: Perfdata -> String -> Int
 hashList datum metric = hash $ buildList datum metric
 
-fmtTag :: [Char] -> Text
-fmtTag = T.pack . (map ensureValid)
+fmtTag :: String -> Text
+fmtTag = T.pack . map ensureValid
 
 ensureValid :: Char -> Char
 ensureValid ',' = '-'
@@ -157,13 +157,13 @@ queueDatumSourceDict spool datum = do
     hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
     let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
-    let newHashmap = union (fromList hashChanges) hashes
+    let newHashmap = fromList hashChanges `union` hashes
     liftIO $ do
         writeIORef (collectorHashes collectorState) newHashmap
         mapM_ (uncurry maybeUpdate) updates
         B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
   where
-    getChanges :: (HashMap String Int) -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
+    getChanges :: HashMap String Int -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
     getChanges hashes metric
         | isNothing oldHash = changes
         | fromJust oldHash == currentHash = Nothing
