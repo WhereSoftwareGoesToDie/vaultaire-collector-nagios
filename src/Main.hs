@@ -43,7 +43,8 @@ import Vaultaire.Types
 
 data CollectorOptions = CollectorOptions {
     optNamespace :: String,
-    optHashFile :: FilePath
+    optHashFile :: FilePath,
+    optDebug :: Bool
 }
 
 data CollectorState = CollectorState {
@@ -87,6 +88,11 @@ opts = CollectorOptions
          <> value "/var/tmp/collector_hash_cache"
          <> metavar "HASH-FILE"
          <> help "Location to read/write cached SourceDicts")
+    <*> switch
+        (long "debug"
+         <> short 'd'
+         <> help "Write debugging output")
+
 
 collectorOptionParser :: ParserInfo CollectorOptions
 collectorOptionParser =
@@ -115,8 +121,10 @@ buildList datum metric =
 hashList :: Perfdata -> String -> Int
 hashList datum metric = hash $ buildList datum metric
 
+fmtTag :: [Char] -> Text
 fmtTag = T.pack . (map ensureValid)
 
+ensureValid :: Char -> Char
 ensureValid ',' = '-'
 ensureValid ':' = '-'
 ensureValid x = x
@@ -151,9 +159,10 @@ queueDatumSourceDict spool datum = do
     let metrics = map fst $ perfdataMetrics datum
     let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
     let newHashmap = union (fromList hashChanges) hashes
-    liftIO $ writeIORef (collectorHashes collectorState) newHashmap
-    liftIO $ mapM_ (uncurry maybeUpdate) updates
-    liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
+    liftIO $ do
+        writeIORef (collectorHashes collectorState) newHashmap
+        mapM_ (uncurry maybeUpdate) updates
+        B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
   where
     getChanges :: (HashMap String Int) -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
     getChanges hashes metric
@@ -168,6 +177,15 @@ queueDatumSourceDict spool datum = do
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
+
+putDebugLn :: String -> CollectorMonad ()
+putDebugLn s = do
+    CollectorState{..} <- ask
+    maybePut (optDebug collectorOpts) s
+    return ()
+  where
+    maybePut False _ = return ()
+    maybePut True msg = liftIO $ putStrLn msg
 
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
