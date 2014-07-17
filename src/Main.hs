@@ -36,7 +36,6 @@ import Data.IORef
 
 import Data.Nagios.Perfdata
 import Marquise.Client
-import Vaultaire.Types
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
@@ -68,7 +67,7 @@ getInitialHashes hashFile = do
     fileExists <- doesFileExist hashFile
     getHashes fileExists
         where
-            getHashes False = do
+            getHashes False = 
                 newIORef (fromList [])
             getHashes True = do
                 initRawHashes <- B.decodeFile hashFile
@@ -193,11 +192,11 @@ putDebugLn s = do
 processLine :: ByteString -> CollectorMonad ()
 processLine line = do
     CollectorState{..} <- ask
-    liftIO $ putStrLn $ "Decoding line: " ++ show line
+    putDebugLn $ "Decoding line: " ++ show line
     case perfdataFromDefaultTemplate line of
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
-            liftIO $ putStrLn "Decoded datum."
+            putDebugLn $ "Decoded datum: " ++ show datum
             liftIO $ mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
             queueDatumSourceDict collectorSpoolFiles datum
   where
