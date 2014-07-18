@@ -26,13 +26,14 @@ import Control.Monad.Reader
 import Control.Arrow
 import Data.Word
 import Data.Serialize
-import Data.HashMap.Strict (lookup, HashMap, fromList, toList, union)
+import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Hashable
 import qualified Data.Binary as B
 import qualified  Data.Binary.Get as G
 import Data.Maybe
+import Data.Set hiding(map)
 import Prelude hiding(lookup)
 import Data.IORef
 
@@ -54,7 +55,7 @@ data CollectorOptions = CollectorOptions {
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
     collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: IORef (HashMap String Int),
+    collectorHashes :: IORef (Set Int),
     collectorHashFile :: FilePath
 }
 
@@ -67,22 +68,30 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     files <- createSpoolFiles optNamespace
     initialHashes <- getInitialHashes optHashFile
     runReaderT act $ CollectorState op files initialHashes optHashFile
+     
   where
     maybePut True s = putStrLn s
     maybePut False _ = return ()
 
-getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
+getInitialHashes :: FilePath -> IO (IORef (Set Int))
 getInitialHashes hashFile = do
     hashList <- getHashList
     newIORef $ fromList hashList
       where
-        getHashList :: IO [(String, Int)]
+        getHashList :: IO [Int]
         getHashList = do
             fileExists <- doesFileExist hashFile
             case fileExists of
                 True -> do
-                    contents <- L.readFile hashFile
+                    putStrLn $ "Opening" ++ hashFile
+                    handle <- openFile hashFile ReadMode
+                    putStrLn "Reading contents"
+                    contents <- L.hGetContents handle
+                    putStrLn "Closing"
+                    contents `seq` hClose handle
+                    putStrLn "Closed"
                     let result = G.runGetOrFail B.get contents
+                    putStrLn "Got result"
                     case result of
                         Left (_, _, e) -> do
                             hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
@@ -123,7 +132,7 @@ collectorOptionParser =
 -- ':'). 
 getSourceDict :: Perfdata -> String -> Either String SourceDict
 getSourceDict datum metric = 
-    makeSourceDict . fromList $ buildList datum metric
+    makeSourceDict . HashMap.fromList $ buildList datum metric
 
 buildList :: Perfdata -> String -> [(Text, Text)]    
 buildList datum metric = 
@@ -174,22 +183,19 @@ queueDatumSourceDict spool datum = do
     collectorState <- ask
     hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
-    let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
-    let newHashmap = fromList hashChanges `union` hashes
+    let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges hashes) metrics
+    let newHashes = fromList hashUpdates `union` hashes
     liftIO $ do
-        writeIORef (collectorHashes collectorState) newHashmap
-        mapM_ (uncurry maybeUpdate) updates
-        B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
+        writeIORef (collectorHashes collectorState) newHashes
+        mapM_ (uncurry maybeUpdate) sdUpdates
   where
-    getChanges :: HashMap String Int -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
+    getChanges :: Set Int -> String -> Maybe (Int, (Address, Either String SourceDict))
     getChanges hashes metric
-        | isNothing oldHash = changes
-        | fromJust oldHash == currentHash = Nothing
+        | member currentHash hashes = Nothing
         | otherwise = changes
             where
-                oldHash = lookup metric hashes
                 currentHash = hashList datum metric
-                changes = Just ((metric, currentHash), (getAddress datum metric, getSourceDict datum metric))
+                changes = Just (currentHash, (getAddress datum metric, getSourceDict datum metric))
     maybeUpdate addr sd =
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
@@ -230,5 +236,16 @@ handleLines = do
             unless (isEOFError err) $ liftIO . hPutStrLn stderr $ "Error reading perfdata: " ++ show err
         Right l -> processLine l >> handleLines
 
+writeHashes :: CollectorMonad ()
+writeHashes = do
+    collectorState <- ask
+    hashes <- liftIO $ readIORef $ collectorHashes collectorState
+    let output = B.encode (toList hashes)
+    let filePath = collectorHashFile collectorState
+    handle <- liftIO $ openFile filePath WriteMode
+    liftIO $ L.hPut handle output `seq` hClose handle
+
+
+
 main :: IO ()
-main = execParser collectorOptionParser >>= flip runCollector handleLines
+main = execParser collectorOptionParser >>= flip runCollector (handleLines >> writeHashes)
