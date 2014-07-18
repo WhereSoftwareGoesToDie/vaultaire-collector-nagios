@@ -16,6 +16,7 @@ import Options.Applicative
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Lazy as L
 import System.IO
 import System.IO.Error
 import System.Directory
@@ -30,6 +31,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Hashable
 import qualified Data.Binary as B
+import qualified  Data.Binary.Get as G
 import Data.Maybe
 import Prelude hiding(lookup)
 import Data.IORef
@@ -64,14 +66,23 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
 
 getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
 getInitialHashes hashFile = do
-    fileExists <- doesFileExist hashFile
-    getHashes fileExists
-        where
-            getHashes False = do
-                newIORef (fromList [])
-            getHashes True = do
-                initRawHashes <- B.decodeFile hashFile
-                newIORef (fromList initRawHashes)
+    hashList <- getHashList
+    newIORef $ fromList hashList
+      where
+        getHashList :: IO [(String, Int)]
+        getHashList = do
+            fileExists <- doesFileExist hashFile
+            case fileExists of
+                True -> do
+                    contents <- L.readFile hashFile
+                    let result = G.runGetOrFail B.get contents
+                    case result of
+                        Left (_, _, e) -> do
+                            hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
+                            hPutStrLn stderr $ "Continuing with empty initial hashmap"
+                            return []
+                        Right (_, _, hashList) -> return hashList
+                False -> return []
 
 opts :: Parser CollectorOptions
 opts = CollectorOptions
