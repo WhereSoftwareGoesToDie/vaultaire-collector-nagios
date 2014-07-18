@@ -66,15 +66,15 @@ runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
     files <- createSpoolFiles optNamespace
-    initialHashes <- getInitialHashes optHashFile
+    initialHashes <- getInitialHashes optHashFile (maybePut optDebug) 
     runReaderT act $ CollectorState op files initialHashes optHashFile
-     
-  where
-    maybePut True s = putStrLn s
-    maybePut False _ = return ()
 
-getInitialHashes :: FilePath -> IO (IORef (Set Int))
-getInitialHashes hashFile = do
+maybePut :: Bool -> String -> IO ()
+maybePut True s = putStrLn s
+maybePut False _ = return ()
+
+getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Int))
+getInitialHashes hashFile putDebug = do
     hashList <- getHashList
     newIORef $ fromList hashList
       where
@@ -83,15 +83,15 @@ getInitialHashes hashFile = do
             fileExists <- doesFileExist hashFile
             case fileExists of
                 True -> do
-                    putStrLn $ "Opening" ++ hashFile
+                    putDebug $ "Opening" ++ hashFile
                     handle <- openFile hashFile ReadMode
-                    putStrLn "Reading contents"
+                    putDebug "Reading contents"
                     contents <- L.hGetContents handle
-                    putStrLn "Closing"
+                    putDebug "Closing"
                     contents `seq` hClose handle
-                    putStrLn "Closed"
+                    putDebug "Closed"
                     let result = G.runGetOrFail B.get contents
-                    putStrLn "Got result"
+                    putDebug $ "Got result: " ++ show result
                     case result of
                         Left (_, _, e) -> do
                             hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
@@ -204,11 +204,8 @@ queueDatumSourceDict spool datum = do
 putDebugLn :: String -> CollectorMonad ()
 putDebugLn s = do
     CollectorState{..} <- ask
-    maybePut (optDebug collectorOpts) s
+    liftIO $ maybePut (optDebug collectorOpts) s
     return ()
-  where
-    maybePut False _ = return ()
-    maybePut True msg = liftIO $ putStrLn msg
 
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
@@ -243,8 +240,6 @@ writeHashes = do
     let output = B.encode (toList hashes)
     let filePath = collectorHashFile collectorState
     liftIO $ L.writeFile filePath output
---    handle <- liftIO $ openFile filePath WriteMode
---    liftIO $ L.hPut handle output `seq` hClose handle
 
 main :: IO ()
 main = execParser collectorOptionParser >>= flip runCollector (handleLines >> writeHashes)
