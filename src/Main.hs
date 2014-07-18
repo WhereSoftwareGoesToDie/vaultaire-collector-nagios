@@ -88,16 +88,19 @@ getInitialHashes hashFile putDebug = do
                     putDebug "Reading contents"
                     contents <- L.hGetContents handle
                     putDebug "Closing"
-                    contents `seq` hClose handle
                     putDebug "Closed"
                     let result = G.runGetOrFail B.get contents
-                    putDebug $ "Got result: " ++ show result
+                    putDebug "Got result"
+                    result `seq` hClose handle
                     case result of
                         Left (_, _, e) -> do
                             hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
                             hPutStrLn stderr $ "Continuing with empty initial hashmap"
                             return []
-                        Right (_, _, hashList) -> return hashList
+                        Right (_, _, hashList) -> do
+                            putStrLn "got hashes:"
+                            print hashList
+                            return hashList
                 False -> return []
 
 opts :: Parser CollectorOptions
