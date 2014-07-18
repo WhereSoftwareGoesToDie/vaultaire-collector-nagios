@@ -242,10 +242,9 @@ writeHashes = do
     hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let output = B.encode (toList hashes)
     let filePath = collectorHashFile collectorState
-    handle <- liftIO $ openFile filePath WriteMode
-    liftIO $ L.hPut handle output `seq` hClose handle
-
-
+    liftIO $ L.writeFile filePath output
+--    handle <- liftIO $ openFile filePath WriteMode
+--    liftIO $ L.hPut handle output `seq` hClose handle
 
 main :: IO ()
 main = execParser collectorOptionParser >>= flip runCollector (handleLines >> writeHashes)
