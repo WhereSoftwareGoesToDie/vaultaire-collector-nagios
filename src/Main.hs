@@ -37,6 +37,9 @@ import Data.IORef
 import Data.Nagios.Perfdata
 import Marquise.Client
 
+collectorVersion :: String
+collectorVersion = "0.2.0.0"
+
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
 
@@ -58,9 +61,13 @@ newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
 
 runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
+    maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
     files <- createSpoolFiles optNamespace
     initialHashes <- getInitialHashes optHashFile
     runReaderT act $ CollectorState op files initialHashes optHashFile
+  where
+    maybePut True s = putStrLn s
+    maybePut False _ = return ()
 
 getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
 getInitialHashes hashFile = do
