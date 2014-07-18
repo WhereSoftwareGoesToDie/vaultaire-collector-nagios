@@ -38,7 +38,7 @@ import Data.Nagios.Perfdata
 import Marquise.Client
 
 collectorVersion :: String
-collectorVersion = "0.2.0.0"
+collectorVersion = "2.0.0"
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
