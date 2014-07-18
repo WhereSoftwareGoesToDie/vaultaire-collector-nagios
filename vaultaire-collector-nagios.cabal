@@ -17,7 +17,7 @@ executable vaultaire-collector-nagios
                        nagios-perfdata,
                        marquise,
                        optparse-applicative,
-                       bytestring,
+                       bytestring >= 0.10.2,
                        cereal,
                        mtl,
                        text,

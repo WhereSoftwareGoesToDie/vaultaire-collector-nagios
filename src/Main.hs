@@ -38,14 +38,17 @@ import Data.IORef
 
 import Data.Nagios.Perfdata
 import Marquise.Client
-import Vaultaire.Types
+
+collectorVersion :: String
+collectorVersion = "2.0.0"
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
 
 data CollectorOptions = CollectorOptions {
     optNamespace :: String,
-    optHashFile :: FilePath
+    optHashFile :: FilePath,
+    optDebug :: Bool
 }
 
 data CollectorState = CollectorState {
@@ -60,9 +63,13 @@ newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
 
 runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
+    maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
     files <- createSpoolFiles optNamespace
     initialHashes <- getInitialHashes optHashFile
     runReaderT act $ CollectorState op files initialHashes optHashFile
+  where
+    maybePut True s = putStrLn s
+    maybePut False _ = return ()
 
 getInitialHashes :: FilePath -> IO (IORef (HashMap String Int))
 getInitialHashes hashFile = do
@@ -98,6 +105,11 @@ opts = CollectorOptions
          <> value "/var/tmp/collector_hash_cache"
          <> metavar "HASH-FILE"
          <> help "Location to read/write cached SourceDicts")
+    <*> switch
+        (long "debug"
+         <> short 'd'
+         <> help "Write debugging output")
+
 
 collectorOptionParser :: ParserInfo CollectorOptions
 collectorOptionParser =
@@ -126,8 +138,10 @@ buildList datum metric =
 hashList :: Perfdata -> String -> Int
 hashList datum metric = hash $ buildList datum metric
 
-fmtTag = T.pack . (map ensureValid)
+fmtTag :: String -> Text
+fmtTag = T.pack . map ensureValid
 
+ensureValid :: Char -> Char
 ensureValid ',' = '-'
 ensureValid ':' = '-'
 ensureValid x = x
@@ -161,12 +175,13 @@ queueDatumSourceDict spool datum = do
     hashes <- liftIO $ readIORef $ collectorHashes collectorState
     let metrics = map fst $ perfdataMetrics datum
     let (hashChanges, updates) = unzip $ mapMaybe (getChanges hashes) metrics
-    let newHashmap = union (fromList hashChanges) hashes
-    liftIO $ writeIORef (collectorHashes collectorState) newHashmap
-    liftIO $ mapM_ (uncurry maybeUpdate) updates
-    liftIO $ B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
+    let newHashmap = fromList hashChanges `union` hashes
+    liftIO $ do
+        writeIORef (collectorHashes collectorState) newHashmap
+        mapM_ (uncurry maybeUpdate) updates
+        B.encodeFile (collectorHashFile collectorState) (toList newHashmap)
   where
-    getChanges :: (HashMap String Int) -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
+    getChanges :: HashMap String Int -> String -> Maybe ((String, Int), (Address, Either String SourceDict))
     getChanges hashes metric
         | isNothing oldHash = changes
         | fromJust oldHash == currentHash = Nothing
@@ -180,17 +195,26 @@ queueDatumSourceDict spool datum = do
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
 
+putDebugLn :: String -> CollectorMonad ()
+putDebugLn s = do
+    CollectorState{..} <- ask
+    maybePut (optDebug collectorOpts) s
+    return ()
+  where
+    maybePut False _ = return ()
+    maybePut True msg = liftIO $ putStrLn msg
+
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
 -- for each metric's metadata.
 processLine :: ByteString -> CollectorMonad ()
 processLine line = do
     CollectorState{..} <- ask
-    liftIO $ putStrLn $ "Decoding line: " ++ show line
+    putDebugLn $ "Decoding line: " ++ show line
     case perfdataFromDefaultTemplate line of
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
-            liftIO $ putStrLn "Decoded datum."
+            putDebugLn $ "Decoded datum: " ++ show datum
             liftIO $ mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
             queueDatumSourceDict collectorSpoolFiles datum
   where
