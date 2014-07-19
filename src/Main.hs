@@ -98,8 +98,6 @@ getInitialHashes hashFile putDebug = do
                             hPutStrLn stderr $ "Continuing with empty initial hashmap"
                             return []
                         Right (_, _, hashList) -> do
-                            putStrLn "got hashes:"
-                            print hashList
                             return hashList
                 False -> return []
 
