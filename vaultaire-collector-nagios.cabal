@@ -1,5 +1,5 @@
 name:                vaultaire-collector-nagios
-version:             2.0.0
+version:             2.0.1
 synopsis:            Vaultaire collector for Nagios perfdata
 homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
