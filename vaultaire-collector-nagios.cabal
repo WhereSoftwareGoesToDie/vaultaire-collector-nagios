@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 executable vaultaire-collector-nagios
   main-is:             Main.hs
   build-depends:       base >= 4.6,
-                       nagios-perfdata >= 0.1.1.0,
+                       nagios-perfdata >= 0.1.2,
                        marquise,
                        optparse-applicative,
                        bytestring >= 0.10.2,
