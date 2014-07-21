@@ -9,6 +9,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
@@ -23,18 +24,21 @@ import System.Directory
 import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
-import Control.Arrow
+import Control.Arrow hiding (second)
 import Data.Word
 import Data.Serialize
 import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Hashable
+import Data.Bifunctor (second,bimap)
 import qualified Data.Binary as B
 import qualified  Data.Binary.Get as G
+import Data.Binary.IEEE754 (doubleToWord)
 import Data.Maybe
-import Data.Set hiding(map)
-import Prelude hiding(lookup)
+import Data.Either (partitionEithers)
+import Data.Set hiding (map,partition)
+import Prelude hiding (lookup)
 import Data.IORef
 
 import Data.Nagios.Perfdata
@@ -170,12 +174,14 @@ getAddress p = hashIdentifier . getMetricId p
 
 -- | Given a Perfdata object, extract each metric into a list of
 -- (address,value) tuples.
-unpackMetrics :: Perfdata -> [(Address,Word64)]
+unpackMetrics :: Perfdata -> [(Address, Either String Word64)]
 unpackMetrics datum = 
-    map ((getAddress datum . fst) &&& (extractValueWord . snd)) (perfdataMetrics datum)
+    map (bimap (getAddress datum) extractValueWord) (perfdataMetrics datum)
   where
-    extractValueWord = either (const 0) id . extractValueWordEither
-    extractValueWordEither = decode . encode . flip metricValueDefault 0.0
+    extractValueWord :: Metric -> Either String Word64
+    extractValueWord m = if unknownMetricValue m then
+        Left "unknown metric value" else
+        Right . doubleToWord $ metricValueDefault m 0.0
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum.
@@ -219,13 +225,19 @@ processLine line = do
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
             putDebugLn $ "Decoded datum: " ++ show datum
-            mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
+            let (badPoints, goodPoints) = partitionPoints . unpackMetrics $ datum
+            liftIO $ mapM_ emitWarning badPoints
+            mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) goodPoints
             queueDatumSourceDict collectorSpoolFiles datum
   where
     sendPoint spool ts addr point = do
         putDebugLn $ "Writing datum " ++ show point ++ " with address " ++ show addr ++ " and timestamp " ++ show ts 
         liftIO $ queueSimple spool addr ts point
     datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp
+    partitionPoints = partitionEithers . map shiftEither
+    shiftEither :: (a, Either b c) -> Either b (a,c)
+    shiftEither (x, y) = second (x,) y
+    emitWarning err = hPutStrLn stderr $ "Warning: error decoding datapoint: " ++ err
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
 handleLines :: CollectorMonad ()
