@@ -219,10 +219,12 @@ processLine line = do
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
             putDebugLn $ "Decoded datum: " ++ show datum
-            liftIO $ mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
+            mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) (unpackMetrics datum)
             queueDatumSourceDict collectorSpoolFiles datum
   where
-    sendPoint spool ts addr = queueSimple spool addr ts
+    sendPoint spool ts addr point = do
+        putDebugLn $ "Writing datum " ++ show point ++ " with address " ++ show addr ++ " and timestamp " ++ show ts 
+        liftIO $ queueSimple spool addr ts point
     datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
