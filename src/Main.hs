@@ -31,9 +31,10 @@ import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Hashable
-import Data.Bifunctor (second)
+import Data.Bifunctor (second,bimap)
 import qualified Data.Binary as B
 import qualified  Data.Binary.Get as G
+import Data.Binary.IEEE754 (doubleToWord)
 import Data.Maybe
 import Data.Either (partitionEithers)
 import Data.Set hiding (map,partition)
@@ -175,11 +176,12 @@ getAddress p = hashIdentifier . getMetricId p
 -- (address,value) tuples.
 unpackMetrics :: Perfdata -> [(Address, Either String Word64)]
 unpackMetrics datum = 
-    map ((getAddress datum . fst) &&& (extractValueWord . snd)) (perfdataMetrics datum)
+    map (bimap (getAddress datum) extractValueWord) (perfdataMetrics datum)
   where
-    extractValueWord m = case unknownMetricValue m of
-        True -> Left "unknown metric value"
-        False -> decode . encode $ metricValueDefault m 0.0
+    extractValueWord :: Metric -> Either String Word64
+    extractValueWord m = if unknownMetricValue m then
+        Left "unknown metric value" else
+        Right . doubleToWord $ metricValueDefault m 0.0
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum.
