@@ -224,8 +224,8 @@ processLine line = do
     case perfdataFromDefaultTemplate line of
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
         Right datum -> do
-            putDebugLn $ "Decoded datum: " ++ show datum
             let (badPoints, goodPoints) = partitionPoints . unpackMetrics $ datum
+            putDebugLn $ "Decoded datum: " ++ show datum ++ " - " ++ show (length goodPoints) ++ " valid metrics"
             liftIO $ mapM_ emitWarning badPoints
             mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) goodPoints
             queueDatumSourceDict collectorSpoolFiles datum
