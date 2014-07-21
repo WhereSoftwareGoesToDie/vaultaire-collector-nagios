@@ -235,7 +235,7 @@ processLine line = do
     partitionPoints = partitionEithers . map shiftEither
     shiftEither :: (a, Either b c) -> Either b (a,c)
     shiftEither (x, y) = second (x,) y
-    emitWarning err = putStrLn $ "warning: error decoding datapoint: " ++ err
+    emitWarning err = hPutStrLn stderr $ "Warning: error decoding datapoint: " ++ err
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
 handleLines :: CollectorMonad ()
