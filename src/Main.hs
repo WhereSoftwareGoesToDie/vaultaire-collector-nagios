@@ -143,8 +143,8 @@ getSourceDict datum metric uom =
 
 buildList :: Perfdata -> String -> UOM -> [(Text, Text)]    
 buildList datum metric uom
-    | isCounter uom = zip (map T.pack ["host", "metric", "service", "_float", "_counter"]) (map fmtTag  [host, metric, service, "1", "1"])
-    | otherwise     = zip (map T.pack ["host", "metric", "service", "_float"]) (map fmtTag  [host, metric, service, "1"])
+    | isCounter uom = convert $ ("_counter", "1"):baseList
+    | otherwise     = convert baseList
   where
     -- host, metric and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
@@ -154,6 +154,8 @@ buildList datum metric uom
     service = C.unpack $ perfdataServiceDescription datum
     isCounter Counter = True
     isCounter _       = False
+    baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metric, service, "1", show uom]
+    convert = map $ bimap T.pack fmtTag
 
 
 hashList :: Perfdata -> String -> UOM -> Int
