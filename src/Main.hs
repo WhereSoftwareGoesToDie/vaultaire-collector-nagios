@@ -25,12 +25,12 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import Control.Arrow hiding (second)
+import Crypto.MAC.SipHash
 import Data.Word
 import Data.Serialize
 import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
-import Data.Hashable
 import Data.Bifunctor (second,bimap)
 import qualified Data.Binary as B
 import qualified  Data.Binary.Get as G
@@ -61,7 +61,7 @@ data CollectorOptions = CollectorOptions {
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
     collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: IORef (Set Int),
+    collectorHashes :: IORef (Set Word64),
     collectorHashFile :: FilePath
 }
 
@@ -79,12 +79,12 @@ maybePut :: Bool -> String -> IO ()
 maybePut True s = putStrLn s
 maybePut False _ = return ()
 
-getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Int))
+getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Word64))
 getInitialHashes hashFile putDebug = do
     hashList <- getHashList
     newIORef $ fromList hashList
       where
-        getHashList :: IO [Int]
+        getHashList :: IO [Word64]
         getHashList = do
             fileExists <- doesFileExist hashFile
             case fileExists of
@@ -158,8 +158,8 @@ buildList datum metric uom
     convert = map $ bimap T.pack fmtTag
 
 
-hashList :: Perfdata -> String -> UOM -> Int
-hashList datum metric uom = hash $ buildList datum metric uom
+hashList :: Perfdata -> String -> UOM -> Word64
+hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (\(a, b) -> (T.unpack a, T.unpack b)) (buildList datum metric uom))) in ret
 
 fmtTag :: String -> Text
 fmtTag = T.pack . map ensureValid
@@ -208,7 +208,7 @@ queueDatumSourceDict spool datum = do
         
 --        mapM_ (putStrLn . show) $ Prelude.filter (isJust) $ map (lookupSource (T.pack "service")) sds
   where
-    getChanges :: Set Int -> (String, UOM) -> Maybe (Int, (Address, Either String SourceDict))
+    getChanges :: Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
     getChanges hashes (metric, uom)
         | member currentHash hashes = Nothing
         | otherwise = changes
