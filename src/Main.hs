@@ -208,6 +208,8 @@ queueDatumSourceDict spool datum = do
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
 
+-- | Print the argument to stdout iff optDebug is set (-d passed on the 
+-- command line). 
 putDebugLn :: String -> CollectorMonad ()
 putDebugLn s = do
     CollectorState{..} <- ask
@@ -248,6 +250,8 @@ handleLines = do
             unless (isEOFError err) $ liftIO . hPutStrLn stderr $ "Error reading perfdata: " ++ show err
         Right l -> processLine l >> handleLines
 
+-- | Write out the SourceDict hashes to the cache file as a serialized 
+-- Set. 
 writeHashes :: CollectorMonad ()
 writeHashes = do
     collectorState <- ask
