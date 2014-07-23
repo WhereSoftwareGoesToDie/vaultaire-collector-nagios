@@ -55,7 +55,8 @@ collectorVersion = "2.0.2"
 data CollectorOptions = CollectorOptions {
     optNamespace :: String,
     optHashFile :: FilePath,
-    optDebug :: Bool
+    optDebug :: Bool,
+    optNormalise :: Bool
 }
 
 data CollectorState = CollectorState {
@@ -81,31 +82,28 @@ maybePut False _ = return ()
 
 getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Word64))
 getInitialHashes hashFile putDebug = do
-    hashList <- getHashList
+    fileExists <- doesFileExist hashFile
+    hashList <- 
+        if not fileExists
+        then return [] 
+        else do
+            putDebug $ "Opening" ++ hashFile
+            handle <- openFile hashFile ReadMode
+            putDebug "Reading contents"
+            contents <- L.hGetContents handle
+            putDebug "Closing"
+            putDebug "Closed"
+            let result = G.runGetOrFail B.get contents
+            putDebug "Got result"
+            result `seq` hClose handle
+            case result of
+                Left (_, _, e) -> do
+                    hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
+                    hPutStrLn stderr $ "Continuing with empty initial hashmap"
+                    return []
+                Right (_, _, hashList) -> do
+                    return hashList
     newIORef $ fromList hashList
-      where
-        getHashList :: IO [Word64]
-        getHashList = do
-            fileExists <- doesFileExist hashFile
-            case fileExists of
-                True -> do
-                    putDebug $ "Opening" ++ hashFile
-                    handle <- openFile hashFile ReadMode
-                    putDebug "Reading contents"
-                    contents <- L.hGetContents handle
-                    putDebug "Closing"
-                    putDebug "Closed"
-                    let result = G.runGetOrFail B.get contents
-                    putDebug "Got result"
-                    result `seq` hClose handle
-                    case result of
-                        Left (_, _, e) -> do
-                            hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
-                            hPutStrLn stderr $ "Continuing with empty initial hashmap"
-                            return []
-                        Right (_, _, hashList) -> do
-                            return hashList
-                False -> return []
 
 opts :: Parser CollectorOptions
 opts = CollectorOptions
@@ -125,7 +123,10 @@ opts = CollectorOptions
         (long "debug"
          <> short 'd'
          <> help "Write debugging output")
-
+    <*> switch
+        (long "normalise-metrics"
+         <> long "norm"
+         <> help "Normalise metrics to base SI units")
 
 collectorOptionParser :: ParserInfo CollectorOptions
 collectorOptionParser =
@@ -143,8 +144,8 @@ getSourceDict datum metric uom =
 
 buildList :: Perfdata -> String -> UOM -> [(Text, Text)]    
 buildList datum metric uom
-    | isCounter uom = convert $ ("_counter", "1"):baseList
-    | otherwise     = convert baseList
+    | (uom == Counter) = convert $ ("_counter", "1"):baseList
+    | otherwise        = convert baseList
   where
     -- host, metric and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
@@ -152,14 +153,11 @@ buildList datum metric uom
     -- the presentation layer.
     host = perfdataHostname datum
     service = C.unpack $ perfdataServiceDescription datum
-    isCounter Counter = True
-    isCounter _       = False
     baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metric, service, "1", show uom]
     convert = map $ bimap T.pack fmtTag
 
-
 hashList :: Perfdata -> String -> UOM -> Word64
-hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (\(a, b) -> (T.unpack a, T.unpack b)) (buildList datum metric uom))) in ret
+hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (bimap T.unpack T.unpack) (buildList datum metric uom))) in ret
 
 fmtTag :: String -> Text
 fmtTag = T.pack . map ensureValid
@@ -204,9 +202,7 @@ queueDatumSourceDict spool datum = do
     liftIO $ do
         writeIORef (collectorHashes collectorState) newHashes
         mapM_ (uncurry maybeUpdate) sdUpdates
-        mapM_ (putStrLn . show) $ sdUpdates
-        
---        mapM_ (putStrLn . show) $ Prelude.filter (isJust) $ map (lookupSource (T.pack "service")) sds
+        mapM_ (putStrLn . show) $ sdUpdates      
   where
     getChanges :: Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
     getChanges hashes (metric, uom)
@@ -224,7 +220,6 @@ putDebugLn :: String -> CollectorMonad ()
 putDebugLn s = do
     CollectorState{..} <- ask
     liftIO $ maybePut (optDebug collectorOpts) s
-    return ()
 
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
@@ -235,7 +230,10 @@ processLine line = do
     putDebugLn $ "Decoding line: " ++ show line
     case perfdataFromDefaultTemplate line of
         Left err -> liftIO $ hPutStrLn stderr $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
-        Right datum -> do
+        Right unnormalisedDatum -> do
+            let datum = if (optNormalise collectorOpts)
+                        then convertPerfdataToBase unnormalisedDatum
+                        else unnormalisedDatum    
             let (badPoints, goodPoints) = partitionPoints . unpackMetrics $ datum
             putDebugLn $ "Decoded datum: " ++ show datum ++ " - " ++ show (length goodPoints) ++ " valid metrics"
             liftIO $ mapM_ emitWarning badPoints
