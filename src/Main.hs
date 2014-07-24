@@ -47,7 +47,7 @@ import Marquise.Client
 import Vaultaire.Types
 
 collectorVersion :: String
-collectorVersion = "2.0.2"
+collectorVersion = "2.1.0"
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
