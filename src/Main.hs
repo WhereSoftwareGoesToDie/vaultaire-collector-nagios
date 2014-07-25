@@ -25,24 +25,26 @@ import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
 import Control.Arrow hiding (second)
+import Crypto.MAC.SipHash
 import Data.Word
 import Data.Serialize
 import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
-import Data.Hashable
 import Data.Bifunctor (second,bimap)
 import qualified Data.Binary as B
 import qualified  Data.Binary.Get as G
 import Data.Binary.IEEE754 (doubleToWord)
 import Data.Maybe
-import Data.Either (partitionEithers)
+import Data.Either (partitionEithers, rights)
 import Data.Set hiding (map,partition)
 import Prelude hiding (lookup)
 import Data.IORef
 
 import Data.Nagios.Perfdata
+import Data.Nagios.Perfdata.Metric
 import Marquise.Client
+import Vaultaire.Types
 
 collectorVersion :: String
 collectorVersion = "2.0.2"
@@ -59,7 +61,7 @@ data CollectorOptions = CollectorOptions {
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
     collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: IORef (Set Int),
+    collectorHashes :: IORef (Set Word64),
     collectorHashFile :: FilePath
 }
 
@@ -77,12 +79,12 @@ maybePut :: Bool -> String -> IO ()
 maybePut True s = putStrLn s
 maybePut False _ = return ()
 
-getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Int))
+getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Word64))
 getInitialHashes hashFile putDebug = do
     hashList <- getHashList
     newIORef $ fromList hashList
       where
-        getHashList :: IO [Int]
+        getHashList :: IO [Word64]
         getHashList = do
             fileExists <- doesFileExist hashFile
             case fileExists of
@@ -135,22 +137,29 @@ collectorOptionParser =
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or
 -- ':'). 
-getSourceDict :: Perfdata -> String -> Either String SourceDict
-getSourceDict datum metric = 
-    makeSourceDict . HashMap.fromList $ buildList datum metric
+getSourceDict :: Perfdata -> String -> UOM -> Either String SourceDict
+getSourceDict datum metric uom = 
+    makeSourceDict . HashMap.fromList $ buildList datum metric uom
 
-buildList :: Perfdata -> String -> [(Text, Text)]    
-buildList datum metric = 
-    let host = perfdataHostname datum in
-    let service = C.unpack $ perfdataServiceDescription datum in
+buildList :: Perfdata -> String -> UOM -> [(Text, Text)]    
+buildList datum metric uom
+    | isCounter uom = convert $ ("_counter", "1"):baseList
+    | otherwise     = convert baseList
+  where
     -- host, metric and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
     -- all values as floats, we also specify this as metadata for
     -- the presentation layer.
-    zip (map T.pack ["host", "metric", "service", "_float"]) (map fmtTag  [host, metric, service, "1"])
+    host = perfdataHostname datum
+    service = C.unpack $ perfdataServiceDescription datum
+    isCounter Counter = True
+    isCounter _       = False
+    baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metric, service, "1", show uom]
+    convert = map $ bimap T.pack fmtTag
 
-hashList :: Perfdata -> String -> Int
-hashList datum metric = hash $ buildList datum metric
+
+hashList :: Perfdata -> String -> UOM -> Word64
+hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (\(a, b) -> (T.unpack a, T.unpack b)) (buildList datum metric uom))) in ret
 
 fmtTag :: String -> Text
 fmtTag = T.pack . map ensureValid
@@ -189,20 +198,23 @@ queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     collectorState <- ask
     hashes <- liftIO $ readIORef $ collectorHashes collectorState
-    let metrics = map fst $ perfdataMetrics datum
+    let metrics = map (\(s, m) -> (s, metricUOM m)) $ perfdataMetrics datum
     let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges hashes) metrics
     let newHashes = fromList hashUpdates `union` hashes
     liftIO $ do
         writeIORef (collectorHashes collectorState) newHashes
         mapM_ (uncurry maybeUpdate) sdUpdates
+        mapM_ (putStrLn . show) $ sdUpdates
+        
+--        mapM_ (putStrLn . show) $ Prelude.filter (isJust) $ map (lookupSource (T.pack "service")) sds
   where
-    getChanges :: Set Int -> String -> Maybe (Int, (Address, Either String SourceDict))
-    getChanges hashes metric
+    getChanges :: Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
+    getChanges hashes (metric, uom)
         | member currentHash hashes = Nothing
         | otherwise = changes
             where
-                currentHash = hashList datum metric
-                changes = Just (currentHash, (getAddress datum metric, getSourceDict datum metric))
+                currentHash = hashList datum metric uom
+                changes = Just (currentHash, (getAddress datum metric, getSourceDict datum metric uom))
     maybeUpdate addr sd =
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
