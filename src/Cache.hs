@@ -23,7 +23,7 @@ decodeCache rawData =
     let result = G.runGetOrFail B.get rawData in
     case result of
         Left (_, _, e)         -> Left e
-        Right (_, _, hashList) -> Right (fromList hashList)
+        Right (_, _, assocList) -> Right (fromList assocList)
 
 encodeCache :: SourceDictCache -> L.ByteString
 encodeCache cache = B.encode $ toList cache

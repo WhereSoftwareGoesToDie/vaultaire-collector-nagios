@@ -9,11 +9,9 @@ import Cache
 import Options
 
 import Control.Applicative
-import Control.Monad
 import Control.Monad.Reader
 import qualified Data.ByteString.Lazy as L
 import Data.IORef
-import Data.Word
 import System.Directory
 import System.IO
 

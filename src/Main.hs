@@ -16,30 +16,22 @@ import Cache
 import Options
 import State
 
-import Options.Applicative
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
-import qualified Data.ByteString.Lazy as L
 import System.IO
 import System.IO.Error
-import System.Directory
 import Control.Exception
 import Control.Monad
 import Control.Monad.Reader
-import Control.Arrow hiding (second)
-import Crypto.MAC.SipHash
 import Data.Word
-import Data.Serialize
 import qualified Data.HashMap.Strict as HashMap(fromList)
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Bifunctor (second,bimap)
-import qualified Data.Binary as B
-import qualified Data.Binary.Get as G
 import Data.Binary.IEEE754 (doubleToWord)
 import Data.Maybe
-import Data.Either (partitionEithers, rights)
+import Data.Either (partitionEithers)
 import Data.Set hiding (map,partition)
 import Prelude hiding (lookup)
 import Data.IORef
@@ -47,7 +39,6 @@ import Data.IORef
 import Data.Nagios.Perfdata
 import Data.Nagios.Perfdata.Metric
 import Marquise.Client
-import Vaultaire.Types
 
 collectorVersion :: String
 collectorVersion = "2.1.2"
