@@ -125,7 +125,7 @@ opts = CollectorOptions
          <> help "Write debugging output")
     <*> switch
         (long "normalise-metrics"
-         <> long "norm"
+         <> short 's'
          <> help "Normalise metrics to base SI units")
 
 collectorOptionParser :: ParserInfo CollectorOptions
