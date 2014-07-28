@@ -47,11 +47,12 @@ import Marquise.Client
 import Vaultaire.Types
 
 collectorVersion :: String
-collectorVersion = "2.1.0"
+collectorVersion = "2.1.1"
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
 
+-- Encapsulates the possible flags and switches for the collector
 data CollectorOptions = CollectorOptions {
     optNamespace :: String,
     optHashFile :: FilePath,
@@ -59,6 +60,7 @@ data CollectorOptions = CollectorOptions {
     optNormalise :: Bool
 }
 
+-- Encapsulates the maintained state required by the collector
 data CollectorState = CollectorState {
     collectorOpts :: CollectorOptions,
     collectorSpoolFiles :: SpoolFiles,
@@ -76,10 +78,18 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     initialHashes <- getInitialHashes optHashFile (maybePut optDebug) 
     runReaderT act $ CollectorState op files initialHashes optHashFile
 
+-- | Convenience functions for debugging
 maybePut :: Bool -> String -> IO ()
 maybePut True s = putStrLn s
 maybePut False _ = return ()
 
+putDebugLn :: String -> CollectorMonad ()
+putDebugLn s = do
+    CollectorState{..} <- ask
+    liftIO $ maybePut (optDebug collectorOpts) s
+
+-- | Attempts to generate an initial cache of SourceDicts from the given file path
+-- If the file does not exist, or is improperly formatted returns an empty cache
 getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Word64))
 getInitialHashes hashFile putDebug = do
     fileExists <- doesFileExist hashFile
@@ -104,6 +114,20 @@ getInitialHashes hashFile putDebug = do
                 Right (_, _, hashList) -> do
                     return hashList
     newIORef $ fromList hashList
+
+-- | Writes out the final state of the cache to the hash file    
+writeHashes :: CollectorMonad ()
+writeHashes = do
+    collectorState <- ask
+    hashes <- liftIO $ readIORef $ collectorHashes collectorState
+    let output = B.encode (toList hashes)
+    let filePath = collectorHashFile collectorState
+    liftIO $ L.writeFile filePath output
+
+-- | Uses the association list of a SourceDict to hash using SipHash
+-- Hashes are used to ignore queuing redundant SourceDict update
+hashList :: Perfdata -> String -> UOM -> Word64
+hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (bimap T.unpack T.unpack) (buildList datum metric uom))) in ret
 
 opts :: Parser CollectorOptions
 opts = CollectorOptions
@@ -142,6 +166,7 @@ getSourceDict :: Perfdata -> String -> UOM -> Either String SourceDict
 getSourceDict datum metric uom = 
     makeSourceDict . HashMap.fromList $ buildList datum metric uom
 
+-- | Builds an association list for conversion into a SourceDict    
 buildList :: Perfdata -> String -> UOM -> [(Text, Text)]    
 buildList datum metric uom
     | (uom == Counter) = convert $ ("_counter", "1"):baseList
@@ -155,10 +180,7 @@ buildList datum metric uom
     service = C.unpack $ perfdataServiceDescription datum
     baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metric, service, "1", show uom]
     convert = map $ bimap T.pack fmtTag
-
-hashList :: Perfdata -> String -> UOM -> Word64
-hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (bimap T.unpack T.unpack) (buildList datum metric uom))) in ret
-
+    
 fmtTag :: String -> Text
 fmtTag = T.pack . map ensureValid
 
@@ -191,7 +213,7 @@ unpackMetrics datum =
         Right . doubleToWord $ metricValueDefault m 0.0
 
 -- | Queue updates to the metadata associated with each metric in the
--- supplied perfdatum.
+-- supplied perfdatum. Does not queue redundant updates
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     collectorState <- ask
@@ -215,12 +237,7 @@ queueDatumSourceDict spool datum = do
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
-
-putDebugLn :: String -> CollectorMonad ()
-putDebugLn s = do
-    CollectorState{..} <- ask
-    liftIO $ maybePut (optDebug collectorOpts) s
-
+           
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
 -- for each metric's metadata.
@@ -257,14 +274,6 @@ handleLines = do
         Left err ->
             unless (isEOFError err) $ liftIO . hPutStrLn stderr $ "Error reading perfdata: " ++ show err
         Right l -> processLine l >> handleLines
-
-writeHashes :: CollectorMonad ()
-writeHashes = do
-    collectorState <- ask
-    hashes <- liftIO $ readIORef $ collectorHashes collectorState
-    let output = B.encode (toList hashes)
-    let filePath = collectorHashFile collectorState
-    liftIO $ L.writeFile filePath output
-
+       
 main :: IO ()
 main = execParser collectorOptionParser >>= flip runCollector (handleLines >> writeHashes)
