@@ -8,10 +8,13 @@
 
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
 module Main where
+
+import Cache
+import Options
+import State
 
 import Options.Applicative
 import Data.ByteString (ByteString)
@@ -33,7 +36,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.Bifunctor (second,bimap)
 import qualified Data.Binary as B
-import qualified  Data.Binary.Get as G
+import qualified Data.Binary.Get as G
 import Data.Binary.IEEE754 (doubleToWord)
 import Data.Maybe
 import Data.Either (partitionEithers, rights)
@@ -47,117 +50,17 @@ import Marquise.Client
 import Vaultaire.Types
 
 collectorVersion :: String
-collectorVersion = "2.1.1"
+collectorVersion = "2.1.2"
 
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
-
--- Encapsulates the possible flags and switches for the collector
-data CollectorOptions = CollectorOptions {
-    optNamespace :: String,
-    optHashFile :: FilePath,
-    optDebug :: Bool,
-    optNormalise :: Bool
-}
-
--- Encapsulates the maintained state required by the collector
-data CollectorState = CollectorState {
-    collectorOpts :: CollectorOptions,
-    collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: IORef (Set Word64),
-    collectorHashFile :: FilePath
-}
-
-newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
 
 runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
     maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
     files <- createSpoolFiles optNamespace
-    initialHashes <- getInitialHashes optHashFile (maybePut optDebug) 
-    runReaderT act $ CollectorState op files initialHashes optHashFile
-
--- | Convenience functions for debugging
-maybePut :: Bool -> String -> IO ()
-maybePut True s = putStrLn s
-maybePut False _ = return ()
-
-putDebugLn :: String -> CollectorMonad ()
-putDebugLn s = do
-    CollectorState{..} <- ask
-    liftIO $ maybePut (optDebug collectorOpts) s
-
--- | Attempts to generate an initial cache of SourceDicts from the given file path
--- If the file does not exist, or is improperly formatted returns an empty cache
-getInitialHashes :: FilePath -> (String -> IO ()) -> IO (IORef (Set Word64))
-getInitialHashes hashFile putDebug = do
-    fileExists <- doesFileExist hashFile
-    hashList <- 
-        if not fileExists
-        then return [] 
-        else do
-            putDebug $ "Opening" ++ hashFile
-            handle <- openFile hashFile ReadMode
-            putDebug "Reading contents"
-            contents <- L.hGetContents handle
-            putDebug "Closing"
-            putDebug "Closed"
-            let result = G.runGetOrFail B.get contents
-            putDebug "Got result"
-            result `seq` hClose handle
-            case result of
-                Left (_, _, e) -> do
-                    hPutStrLn stderr $ concat ["Error reading hash file: ", show e]
-                    hPutStrLn stderr $ "Continuing with empty initial hashmap"
-                    return []
-                Right (_, _, hashList) -> do
-                    return hashList
-    newIORef $ fromList hashList
-
--- | Writes out the final state of the cache to the hash file    
-writeHashes :: CollectorMonad ()
-writeHashes = do
-    collectorState <- ask
-    hashes <- liftIO $ readIORef $ collectorHashes collectorState
-    let output = B.encode (toList hashes)
-    let filePath = collectorHashFile collectorState
-    liftIO $ L.writeFile filePath output
-
--- | Uses the association list of a SourceDict to hash using SipHash
--- Hashes are used to ignore queuing redundant SourceDict update
-hashList :: Perfdata -> String -> UOM -> Word64
-hashList datum metric uom = let (SipHash ret) = hash (SipKey 0 0) (encode (map (bimap T.unpack T.unpack) (buildList datum metric uom))) in ret
-
-opts :: Parser CollectorOptions
-opts = CollectorOptions
-    <$> strOption
-        (long "marquise-namespace"
-         <> short 'n'
-         <> value "perfdata"
-         <> metavar "MARQUISE-NAMESPACE"
-         <> help "Marquise namespace to write to. Must be unique on a host basis.")
-    <*> strOption
-        (long "hash-file"
-         <> short 'f'
-         <> value "/var/tmp/collector_hash_cache"
-         <> metavar "HASH-FILE"
-         <> help "Location to read/write cached SourceDicts")
-    <*> switch
-        (long "debug"
-         <> short 'd'
-         <> help "Write debugging output")
-    <*> switch
-        (long "normalise-metrics"
-         <> short 's'
-         <> help "Normalise metrics to base SI units")
-
-collectorOptionParser :: ParserInfo CollectorOptions
-collectorOptionParser =
-    info (helper <*> opts)
-    (fullDesc <> 
-        progDesc "Vaultaire collector for Nagios perfdata files" <>
-        header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire")
+    initialHashes <- getInitialCache optCacheFile (maybePut optDebug) 
+    runReaderT act $ CollectorState op files initialHashes optCacheFile
 
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or
@@ -167,7 +70,7 @@ getSourceDict datum metric uom =
     makeSourceDict . HashMap.fromList $ buildList datum metric uom
 
 -- | Builds an association list for conversion into a SourceDict    
-buildList :: Perfdata -> String -> UOM -> [(Text, Text)]    
+buildList :: Perfdata -> String -> UOM -> [(Text, Text)] 
 buildList datum metric uom
     | (uom == Counter) = convert $ ("_counter", "1"):baseList
     | otherwise        = convert baseList
@@ -231,7 +134,7 @@ queueDatumSourceDict spool datum = do
         | member currentHash hashes = Nothing
         | otherwise = changes
             where
-                currentHash = hashList datum metric uom
+                currentHash = hashList $ buildList datum metric uom
                 changes = Just (currentHash, (getAddress datum metric, getSourceDict datum metric uom))
     maybeUpdate addr sd =
         case sd of
@@ -276,4 +179,4 @@ handleLines = do
         Right l -> processLine l >> handleLines
        
 main :: IO ()
-main = execParser collectorOptionParser >>= flip runCollector (handleLines >> writeHashes)
+main = parseOptions >>= flip runCollector (handleLines >> writeHashes)
