@@ -9,7 +9,7 @@ maintainer:          sio@tesser.org
 copyright:           2014 Anchor Systems and others
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
+cabal-version:       >=1.20
 
 executable vaultaire-collector-nagios
   main-is:             Main.hs
