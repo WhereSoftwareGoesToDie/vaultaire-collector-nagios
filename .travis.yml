@@ -35,6 +35,8 @@ install:
   - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks
 
 script:
+  - cabal-$CABALVER --version
+  - which cabal-$CABALVER
   - cabal-$CABALVER configure
   - cabal-$CABALVER build
   - cabal-$CABALVER test
