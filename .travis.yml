@@ -25,15 +25,20 @@ install:
   - which cabal-$CABALVER
   - cabal-$CABALVER update
   - mkdir deps
-  - cabal-$CABALVER sandbox init
   - cd deps
   - git clone https://github.com/anchor/vaultaire-common
-  - git clone https://github.com/anchor/marquise
-  - git clone https://github.com/anchor/nagios-perfdata
+  - cd vaultaire-common
+  - cabal-$CABALVER install
   - cd ..
-  - cabal-$CABALVER sandbox add-source ./deps/vaultaire-common
-  - cabal-$CABALVER sandbox add-source ./deps/marquise
-  - cabal-$CABALVER sandbox add-source ./deps/nagios-perfdata
+  - git clone https://github.com/anchor/marquise
+  - cd marquise
+  - cabal-$CABALVER install
+  - cd ..
+  - git clone https://github.com/anchor/nagios-perfdata
+  - cd nagios-perfdata
+  - cabal-$CABALVER install
+  - cd ..
+  - cd ..
   - cabal-$CABALVER install --only-dependencies --enable-tests --enable-benchmarks
 
 script:
