@@ -9,10 +9,10 @@ import Cache
 import Options
 
 import Control.Applicative
+import Control.Exception
 import Control.Monad.Reader
 import qualified Data.ByteString.Lazy as L
 import Data.IORef
-import System.Directory
 import System.IO
 
 import Marquise.Client
@@ -34,7 +34,7 @@ writeHashes = do
     cache <- liftIO $ readIORef $ collectorHashes collectorState
     let encodedCache = encodeCache cache
     let filePath = collectorHashFile collectorState
-    liftIO $ L.writeFile filePath encodedCache
+    liftIO $ bracket (openFile filePath WriteMode) (hClose) (\h -> L.hPut h encodedCache)
 
 -- | Convenience functions for debugging
 maybePut :: Bool -> String -> IO ()
@@ -50,29 +50,18 @@ putDebugLn s = do
 -- If the file does not exist, or is improperly formatted returns an empty cache
 getInitialCache :: FilePath -> (String -> IO ()) -> IO (IORef SourceDictCache)
 getInitialCache cacheFile putDebug = do
-    fileExists <- doesFileExist cacheFile
-    initialCache <- 
-        if not fileExists
-        then do
-            putDebug $ "hash file doesn't exist"
-            putDebug $ "Continuing with empty initial cache"
-            return emptyCache
-        else do
-            putDebug $ "Opening" ++ cacheFile
-            handle <- openFile cacheFile ReadMode
-            putDebug "Reading contents"
-            contents <- L.hGetContents handle
-            let result = decodeCache contents
-            result `seq` return ()
-            putDebug "Got result"
-            putDebug "Closing"
-            hClose handle `seq` return ()
-            putDebug "Closed"
-            case result of
-                Left e -> do
-                    putDebug $ concat ["Error decoding hash filed: ", show e]
-                    putDebug $ "Continuing with empty initial cache"
-                    return emptyCache
-                Right cache -> do
-                    return cache
+    initialCache <- bracket (openFile cacheFile ReadWriteMode) (hClose) readCache
     newIORef initialCache
+  where
+    readCache h = do
+        putDebug "Reading contents"
+        contents <- L.hGetContents h
+        let result = decodeCache contents
+        putDebug "Got result"
+        case result of
+            Left e -> do
+                putDebug $ concat ["Error decoding hash filed: ", show e]
+                putDebug $ "Continuing with empty initial cache"
+                return emptyCache
+            Right cache -> do
+                return cache
