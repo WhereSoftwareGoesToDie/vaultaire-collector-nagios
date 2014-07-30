@@ -21,16 +21,20 @@ import Marquise.Client
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or
 -- ':'). 
-getSourceDict :: Perfdata -> String -> UOM -> Either String SourceDict
-getSourceDict datum metric uom = 
-    makeSourceDict . HashMap.fromList $ buildList datum metric uom
+getSourceDict :: [(Text, Text)] -> Either String SourceDict
+getSourceDict = 
+    makeSourceDict . HashMap.fromList
 
 -- | Builds an association list for conversion into a SourceDict    
-buildList :: Perfdata -> String -> UOM -> [(Text, Text)] 
-buildList datum metric uom
-    | (uom == Counter) = convert $ ("_counter", "1"):baseList
-    | otherwise        = convert baseList
+buildList :: Perfdata -> String -> UOM -> Bool -> [(Text, Text)] 
+buildList datum metric uom normalise = convert $ concat [baseList, counter, unit]
   where
+    counter
+        | (uom == Counter) = [("_counter", "1")]
+        | otherwise        = []
+    unit
+        | normalise = [("_unit", "1")]
+        | otherwise = []
     -- host, metric and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
     -- all values as floats, we also specify this as metadata for

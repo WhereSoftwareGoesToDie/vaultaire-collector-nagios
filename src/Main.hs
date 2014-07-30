@@ -49,23 +49,25 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
 -- supplied perfdatum. Does not queue redundant updates
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
-    collectorState <- ask
-    hashes <- liftIO $ readIORef $ collectorHashes collectorState
+    CollectorState{..} <- ask
+    let CollectorOptions{..} = collectorOpts
+    hashes <- liftIO $ readIORef $ collectorHashes
     let metrics = map (\(s, m) -> (s, metricUOM m)) $ perfdataMetrics datum
-    let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges hashes) metrics
+    let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges hashes optNormalise) metrics
     let newHashes = fromList hashUpdates `union` hashes
     liftIO $ do
-        writeIORef (collectorHashes collectorState) newHashes
+        writeIORef collectorHashes newHashes
         mapM_ (uncurry maybeUpdate) sdUpdates
         mapM_ (putStrLn . show) $ sdUpdates      
   where
-    getChanges :: Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
-    getChanges hashes (metric, uom)
+    getChanges :: Set Word64 -> Bool -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
+    getChanges hashes normalise (metric, uom)
         | member currentHash hashes = Nothing
         | otherwise = changes
             where
-                currentHash = hashList $ buildList datum metric uom
-                changes = Just (currentHash, (getAddress datum metric, getSourceDict datum metric uom))
+                assocList = buildList datum metric uom normalise
+                currentHash = hashList assocList
+                changes = Just (currentHash, (getAddress datum metric, getSourceDict assocList))
     maybeUpdate addr sd =
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
