@@ -21,6 +21,8 @@ before_install:
   - cd ..
 
 install:
+  - cabal-$CABALVER --version
+  - which cabal-$CABALVER
   - cabal-$CABALVER update
   - mkdir deps
   - cabal-$CABALVER sandbox init
