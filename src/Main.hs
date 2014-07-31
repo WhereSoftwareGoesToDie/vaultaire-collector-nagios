@@ -58,7 +58,6 @@ queueDatumSourceDict spool datum = do
     liftIO $ do
         writeIORef collectorHashes newHashes
         mapM_ (uncurry maybeUpdate) sdUpdates
-        mapM_ (putStrLn . show) $ sdUpdates      
   where
     getChanges :: Set Word64 -> Bool -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
     getChanges hashes normalise (metric, uom)
