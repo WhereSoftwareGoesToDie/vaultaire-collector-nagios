@@ -25,8 +25,8 @@ if you are using
 a better
 alternative](https://github.com/anchor/vaultaire-collector-nagios-gearman)).
 
-Metdata
-=======
+Metadata
+========
 
 In addition to metric-identifying fields (`host`, `metric`, and
 `service`), the collector will write the following presentation-layer
