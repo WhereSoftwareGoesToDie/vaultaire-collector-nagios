@@ -7,8 +7,7 @@ to [Vaultaire](https://github.com/anchor/vaultaire).
 dependencies
 ============
 
- - [Vaultaire](https://github.com/anchor/vaultaire) (for the Marquise
-   daemon)
+ - [Marquise](https://github.com/anchor/marquise) 
  - [nagios-perfdata](https://github.com/anchor/nagios-perfdata)
 
 operation
