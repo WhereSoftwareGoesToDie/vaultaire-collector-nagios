@@ -13,6 +13,7 @@ cabal-version:       >=1.20
 
 executable vaultaire-collector-nagios
   main-is:             Main.hs
+  other-modules:       Paths_vaultaire_collector_nagios
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
                        marquise,

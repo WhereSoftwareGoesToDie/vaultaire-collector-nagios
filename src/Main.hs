@@ -35,12 +35,11 @@ import Data.Nagios.Perfdata
 import Data.Nagios.Perfdata.Metric
 import Marquise.Client
 
-collectorVersion :: String
-collectorVersion = "2.1.2"
+import Paths_vaultaire_collector_nagios (version)
 
 runCollector :: CollectorOptions -> CollectorMonad a -> IO a
 runCollector op@CollectorOptions{..} (CollectorMonad act) = do
-    maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
+    maybePut optDebug $ "Collector version " ++ show version ++ " starting."
     files <- createSpoolFiles optNamespace
     initialHashes <- getInitialCache optCacheFile (maybePut optDebug) 
     runReaderT act $ CollectorState op files initialHashes optCacheFile
