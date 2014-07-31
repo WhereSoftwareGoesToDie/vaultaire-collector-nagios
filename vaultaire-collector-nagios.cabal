@@ -5,7 +5,7 @@ homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
 license-file:        LICENSE
 author:              Sharif Olorin
-maintainer:          sio@tesser.org
+maintainer:          engineering@anchor.com.au
 copyright:           2014 Anchor Systems and others
 build-type:          Simple
 extra-source-files:  README.md
