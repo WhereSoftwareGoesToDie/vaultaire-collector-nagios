@@ -72,7 +72,7 @@ queueDatumSourceDict spool datum = do
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
-           
+
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
 -- for each metric's metadata.
@@ -109,6 +109,6 @@ handleLines = do
         Left err ->
             unless (isEOFError err) $ liftIO . hPutStrLn stderr $ "Error reading perfdata: " ++ show err
         Right l -> processLine l >> handleLines
-       
+
 main :: IO ()
 main = parseOptions >>= flip runCollector (handleLines >> writeHashes)
