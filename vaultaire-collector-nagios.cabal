@@ -1,18 +1,22 @@
-name:                vaultaire-collector-nagios
-version:             2.1.3
-synopsis:            Vaultaire collector for Nagios perfdata
-homepage:            https://github.com/anchor/vaultaire-collector-nagios
-license:             BSD3
-license-file:        LICENSE
-author:              Sharif Olorin
-maintainer:          sio@tesser.org
-copyright:           2014 Anchor Systems and others
-build-type:          Simple
-extra-source-files:  README.md
-cabal-version:       >=1.20
+name:                  vaultaire-collector-nagios
+version:               3.0.0
+synopsis:              Vaultaire collector for Nagios perfdata
+homepage:              https://github.com/anchor/vaultaire-collector-nagios
+license:               BSD3
+license-file:          LICENSE
+author:                Sharif Olorin
+maintainer:            sio@tesser.org
+copyright:             2014 Anchor Systems and others
+build-type:            Simple
+extra-source-files:    README.md
+cabal-version:         >=1.20
 
-executable vaultaire-collector-nagios
-  main-is:             Main.hs
+library
+  hs-source-dirs:      lib
+  exposed-modules:     Data.Nagios.Perfdata.Collector.State
+                       Data.Nagios.Perfdata.Collector.Cache
+                       Data.Nagios.Perfdata.Collector.Util
+                       Data.Nagios.Perfdata.Collector.Options
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
                        marquise,
@@ -30,12 +34,41 @@ executable vaultaire-collector-nagios
                        containers,
                        data-binary-ieee754,
                        siphash
-  hs-source-dirs:      src
-  default-language:    Haskell2010
-  ghc-options:       -O2
-                     -threaded
-                     -Wall
-                     -Wwarn
-                     -fwarn-tabs
 
-  ghc-prof-options:  -fprof-auto
+  default-language:    Haskell2010
+  ghc-options:         -O2
+                       -threaded
+                       -Wall
+                       -Wwarn
+                       -fwarn-tabs
+  ghc-prof-options:    -fprof-auto
+
+executable vaultaire-collector-nagios
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  build-depends:       base >= 4.7,
+                       nagios-perfdata >= 0.2.0,
+                       marquise,
+                       optparse-applicative,
+                       bytestring >= 0.10.2,
+                       cereal,
+                       mtl,
+                       text,
+                       unordered-containers,
+                       binary,
+                       hashable,
+                       directory,
+                       vaultaire-common,
+                       bifunctors,
+                       containers,
+                       data-binary-ieee754,
+                       siphash,
+                       vaultaire-collector-nagios
+
+  default-language:    Haskell2010
+  ghc-options:         -O2
+                       -threaded
+                       -Wall
+                       -Wwarn
+                       -fwarn-tabs
+  ghc-prof-options:    -fprof-auto

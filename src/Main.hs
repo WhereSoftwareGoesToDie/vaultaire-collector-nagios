@@ -11,10 +11,10 @@
 
 module Main where
 
-import Cache
-import Options
-import State
-import Util
+import Data.Nagios.Perfdata.Collector.Cache
+import Data.Nagios.Perfdata.Collector.Options
+import Data.Nagios.Perfdata.Collector.State
+import Data.Nagios.Perfdata.Collector.Util
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as S

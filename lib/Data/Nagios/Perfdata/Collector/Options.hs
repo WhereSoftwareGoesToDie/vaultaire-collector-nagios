@@ -1,6 +1,6 @@
 -- | Options/Parsing
 
-module Options where
+module Data.Nagios.Perfdata.Collector.Options where
 
 import Options.Applicative
 

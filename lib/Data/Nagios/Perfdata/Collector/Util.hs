@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Util where
+module Data.Nagios.Perfdata.Collector.Util where
 
 import Data.Bifunctor (bimap)
 import Data.Binary.IEEE754 (doubleToWord)

@@ -3,10 +3,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards            #-}
 
-module State where
+module Data.Nagios.Perfdata.Collector.State where
 
-import Cache
-import Options
+import Data.Nagios.Perfdata.Collector.Cache
+import Data.Nagios.Perfdata.Collector.Options
 
 import Control.Applicative
 import Control.Exception

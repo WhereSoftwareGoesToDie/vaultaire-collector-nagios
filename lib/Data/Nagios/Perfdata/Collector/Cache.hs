@@ -1,6 +1,6 @@
 -- | Hashing as well as encoding/decoding caches
 
-module Cache where
+module Data.Nagios.Perfdata.Collector.Cache where
 
 import Crypto.MAC.SipHash
 import Data.Bifunctor (bimap)
