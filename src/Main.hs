@@ -38,8 +38,8 @@ import Marquise.Client
 collectorVersion :: String
 collectorVersion = "2.1.2"
 
-runCollector :: CollectorOptions -> CollectorMonad a -> IO a
-runCollector op@CollectorOptions{..} (CollectorMonad act) = do
+runCollector :: CommonOptions -> CollectorMonad a -> IO a
+runCollector op@CommonOptions{..} (CollectorMonad act) = do
     maybePut optDebug $ "Collector version " ++ collectorVersion ++ " starting."
     files <- createSpoolFiles optNamespace
     initialHashes <- getInitialCache optCacheFile (maybePut optDebug) 
@@ -50,7 +50,7 @@ runCollector op@CollectorOptions{..} (CollectorMonad act) = do
 queueDatumSourceDict :: SpoolFiles -> Perfdata -> CollectorMonad ()
 queueDatumSourceDict spool datum = do
     CollectorState{..} <- ask
-    let CollectorOptions{..} = collectorOpts
+    let CommonOptions{..} = collectorOpts
     hashes <- liftIO $ readIORef $ collectorHashes
     let metrics = map (\(s, m) -> (s, metricUOM m)) $ perfdataMetrics datum
     let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges hashes optNormalise) metrics
@@ -111,4 +111,4 @@ handleLines = do
         Right l -> processLine l >> handleLines
 
 main :: IO ()
-main = parseOptions >>= flip runCollector (handleLines >> writeHashes)
+main = (parseOptions NonGearman) >>= flip runCollector (handleLines >> writeHashes)

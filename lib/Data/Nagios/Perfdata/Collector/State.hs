@@ -18,14 +18,22 @@ import System.IO
 import Marquise.Client
 -- Encapsulates the maintained state required by the collector
 data CollectorState = CollectorState {
-    collectorOpts :: CollectorOptions,
+    collectorOpts       :: CommonOptions,
     collectorSpoolFiles :: SpoolFiles,
-    collectorHashes :: IORef SourceDictCache,
-    collectorHashFile :: FilePath
+    collectorHashes     :: IORef SourceDictCache,
+    collectorHashFile   :: FilePath
+}
+
+data GearmanState = GearmanState {
+
 }
 
 newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
+
+newtype GearmanCollectorMonad a = GearmanCollectorMonad (ReaderT GearmanState IO a)
+    deriving (Functor, Applicative, Monad, MonadIO, MonadReader GearmanState)
+
 
 -- | Writes out the final state of the cache to the hash file    
 writeHashes :: CollectorMonad ()
