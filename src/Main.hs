@@ -97,7 +97,7 @@ processDatum debug spool hashesRef normalise datum = do
     maybePut debug $ concat ["Decoded datum: ", show datum, " - ", show (length goodPoints), " valid metrics"]
     mapM_ emitWarning badPoints
     mapM_ (uncurry (sendPoint (datumTimestamp datum))) goodPoints
-    queueDatumSourceDict debug spool hashesRef normalise goodPoints
+    queueDatumSourceDict debug spool hashesRef normalise datum
   where
     partitionPoints = partitionEithers . map shiftEither
     shiftEither :: (a, Either b c) -> Either b (a,c)
