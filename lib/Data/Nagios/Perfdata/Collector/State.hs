@@ -56,13 +56,13 @@ getInitialCache cacheFile putDebug = do
     newIORef initialCache
   where
     readCache h = do
-        putDebug "Reading contents"
+        putDebug "Reading cache file"
         contents <- L.hGetContents h
         let result = decodeCache contents
-        putDebug "Got result"
+        putDebug "Decoding cache file"
         case result of
             Left e -> do
-                putDebug $ concat ["Error decoding hash filed: ", show e]
+                putDebug $ concat ["Error decoding hash file: ", show e]
                 putDebug $ "Continuing with empty initial cache"
                 return emptyCache
             Right cache -> do
