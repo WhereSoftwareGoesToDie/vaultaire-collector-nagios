@@ -1,15 +1,15 @@
-name:                  vaultaire-collector-nagios
-version:               3.0.0
-synopsis:              Vaultaire collector for Nagios perfdata
-homepage:              https://github.com/anchor/vaultaire-collector-nagios
-license:               BSD3
-license-file:          LICENSE
-author:                Sharif Olorin
-maintainer:            sio@tesser.org
-copyright:             2014 Anchor Systems and others
-build-type:            Simple
-extra-source-files:    README.md
-cabal-version:         >=1.20
+name:                vaultaire-collector-nagios
+version:             3.0.0
+synopsis:            Vaultaire collector for Nagios perfdata
+homepage:            https://github.com/anchor/vaultaire-collector-nagios
+license:             BSD3
+license-file:        LICENSE
+author:              Sharif Olorin
+maintainer:          engineering@anchor.com.au
+copyright:           2014 Anchor Systems and others
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.20
 
 library
   hs-source-dirs:      lib
@@ -33,22 +33,20 @@ library
                        bifunctors,
                        containers,
                        data-binary-ieee754,
-                       siphash
-
-  default-language:    Haskell2010
-  ghc-options:         -O2
-                       -threaded
-                       -Wall
-                       -Wwarn
-                       -fwarn-tabs
-  ghc-prof-options:    -fprof-auto
+                       siphash,
+                       cipher-aes,
+                       gearman-haskell
 
 executable vaultaire-collector-nagios
   hs-source-dirs:      src
   main-is:             Main.hs
+  other-modules:       Paths_vaultaire_collector_nagios
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
                        marquise,
+                       vaultaire-collector-nagios,
+                       vaultaire-common,
+                       gearman-haskell,
                        optparse-applicative,
                        bytestring >= 0.10.2,
                        cereal,
@@ -58,12 +56,13 @@ executable vaultaire-collector-nagios
                        binary,
                        hashable,
                        directory,
-                       vaultaire-common,
                        bifunctors,
                        containers,
                        data-binary-ieee754,
                        siphash,
-                       vaultaire-collector-nagios
+                       cipher-aes,
+                       base64-bytestring
+
 
   default-language:    Haskell2010
   ghc-options:         -O2

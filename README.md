@@ -4,13 +4,13 @@ vaultaire-collector-nagios
 vaultaire-collector-nagios reads Nagios perfdata from stdin and writes it
 to [Vaultaire](https://github.com/anchor/vaultaire).
 
-dependencies
+Dependencies
 ============
 
  - [Marquise](https://github.com/anchor/marquise) 
  - [nagios-perfdata](https://github.com/anchor/nagios-perfdata)
 
-operation
+Operation
 =========
 
 There are a few ways to set this up; at its core the only thing that
@@ -24,3 +24,19 @@ if you are using
 [mod_gearman](https://labs.consol.de/nagios/mod-gearman/) then [there is
 a better
 alternative](https://github.com/anchor/vaultaire-collector-nagios-gearman)).
+
+Metadata
+========
+
+In addition to metric-identifying fields (`host`, `metric`, and
+`service`), the collector will write the following presentation-layer
+metadata for each datapoint:
+
+ - `_unit` - whether or not the metric has been normalized (i.e., scaled
+   to base units per SI prefix).
+ - `_uom` - Nagios UOM. May be different from that reported by the check
+   result, if scaling is applied.
+ - `_counter` - whether the metric is marked as a counter in the Nagios
+   check output.
+ - `_float` - whether the datapoint word is floating-point (as opposed
+   to integral).

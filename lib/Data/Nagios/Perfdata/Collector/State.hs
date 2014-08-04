@@ -11,6 +11,7 @@ import Data.Nagios.Perfdata.Collector.Options
 import Control.Applicative
 import Control.Exception
 import Control.Monad.Reader
+import Crypto.Cipher.AES
 import qualified Data.ByteString.Lazy as L
 import Data.IORef
 import System.IO
@@ -18,24 +19,17 @@ import System.IO
 import Marquise.Client
 -- Encapsulates the maintained state required by the collector
 data CollectorState = CollectorState {
-    collectorOpts       :: CommonOptions,
-    collectorSpoolFiles :: SpoolFiles,
-    collectorHashes     :: IORef SourceDictCache,
-    collectorHashFile   :: FilePath
-}
-
-data GearmanState = GearmanState {
-
+    collectorOpts         :: CollectorOptions,
+    collectorAES          :: Maybe AES,
+    collectorSpoolFiles   :: SpoolFiles,
+    collectorHashes       :: IORef SourceDictCache,
+    collectorHashFile     :: FilePath
 }
 
 newtype CollectorMonad a = CollectorMonad (ReaderT CollectorState IO a)
     deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
 
-newtype GearmanCollectorMonad a = GearmanCollectorMonad (ReaderT GearmanState IO a)
-    deriving (Functor, Applicative, Monad, MonadIO, MonadReader GearmanState)
-
-
--- | Writes out the final state of the cache to the hash file    
+-- | Writes out the final state of the cache to the hash file
 writeHashes :: CollectorMonad ()
 writeHashes = do
     collectorState <- ask

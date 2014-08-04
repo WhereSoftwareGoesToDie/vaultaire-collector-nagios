@@ -6,34 +6,35 @@ module Data.Nagios.Perfdata.Collector.Options where
 
 import Options.Applicative
 
-data Mode a where
-    NonGearman :: Mode CommonOptions
-    Gearman    :: Mode GearmanOptions
-
 -- Encapsulates the possible flags and switches for both collectors
-data CommonOptions = CommonOptions {
-    optNamespace :: String,
-    optCacheFile :: FilePath,
-    optDebug     :: Bool,
-    optNormalise :: Bool
+data CollectorOptions = CollectorOptions {
+    optNamespace     :: String,
+    optCacheFile     :: FilePath,
+    optDebug         :: Bool,
+    optNormalise     :: Bool,
+    optGearmanMode   :: Bool,
+    optGearmanHost   :: String,
+    optGearmanPort   :: String,
+    optWorkerThreads :: Int,
+    optFunctionName  :: String,
+    optKeyFile       :: String
 }
 
--- Encapsulates gearman specific options + common options
-data GearmanOptions = GearmanOptions {
-    gearOptGearmanHost   :: String,
-    gearOptGearmanPort   :: String,
-    gearOptWorkerThreads :: Int,
-    gearOptFunctionName  :: String,
-    gearOptKeyFile       :: String,
-    gearOptCommonOptions :: CommonOptions
-}
+parseOptions :: IO CollectorOptions
+parseOptions = execParser optionParser
 
-parseOptions :: Mode a -> IO a
-parseOptions = execParser . optionParser
+-- | Parser which include all help info
+optionParser :: ParserInfo CollectorOptions
+optionParser =
+    info (helper <*> collectorOptions)
+    (fullDesc <>
+        progDesc "Vaultaire collector for Nagios perfdata files, can run with mod_gearman" <>
+        header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire. Can run in daemon mode using the gearman protocol"
+    )
 
 -- | The parser for all options for nagios-perfdata
-commonOpts :: Parser CommonOptions
-commonOpts = CommonOptions
+collectorOptions :: Parser CollectorOptions
+collectorOptions = CollectorOptions
     <$> strOption
         (long "marquise-namespace"
          <> short 'n'
@@ -54,12 +55,13 @@ commonOpts = CommonOptions
         (long "normalise-metrics"
          <> short 's'
          <> help "Normalise metrics to base SI units")
-
-gearmanOpts :: Parser GearmanOptions
-gearmanOpts = GearmanOptions
-    <$> strOption
-        (long "gearman-host"
+    <*> switch
+        (long "gearman"
          <> short 'g'
+         <> help "Run in gearman mode")
+    <*> strOption
+        (long "gearman-host"
+         <> short 'h'
          <> value "localhost"
          <> metavar "GEARMANHOST"
          <> help "Hostname of Gearman server.")
@@ -87,19 +89,3 @@ gearmanOpts = GearmanOptions
          <> value ""
          <> metavar "KEY-FILE"
          <> help "File from which to read AES key to decrypt check results. If unspecified, results are assumed to be in cleartext.")
-    <*> commonOpts
-
--- | Parser which include all help info
-optionParser :: Mode a -> ParserInfo a
-optionParser NonGearman =
-    info (helper <*> commonOpts)
-    (fullDesc <>
-        progDesc "Vaultaire collector for Nagios perfdata files" <>
-        header "vaultaire-collector-nagios - writes datapoints from Nagios perfdata files to Vaultaire"
-    )
-optionParser Gearman =
-    info (helper <*> gearmanOpts)
-    (fullDesc <>
-        progDesc "Vaultaire collector for Nagios with mod_gearman" <>
-        header "vaultaire-collector-nagios-gearman - daemon to write Nagios perfdata to Vaultaire"
-    )
