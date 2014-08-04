@@ -1,24 +1,10 @@
-{-# LANGUAGE GADTs #-}
-
 -- | Options/Parsing
 
 module Data.Nagios.Perfdata.Collector.Options where
 
-import Options.Applicative
+import Data.Nagios.Perfdata.Collector.Rep
 
--- Encapsulates the possible flags and switches for both collectors
-data CollectorOptions = CollectorOptions {
-    optNamespace     :: String,
-    optCacheFile     :: FilePath,
-    optDebug         :: Bool,
-    optNormalise     :: Bool,
-    optGearmanMode   :: Bool,
-    optGearmanHost   :: String,
-    optGearmanPort   :: String,
-    optWorkerThreads :: Int,
-    optFunctionName  :: String,
-    optKeyFile       :: String
-}
+import Options.Applicative
 
 parseOptions :: IO CollectorOptions
 parseOptions = execParser optionParser

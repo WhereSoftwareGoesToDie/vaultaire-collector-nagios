@@ -2,6 +2,8 @@
 
 module Data.Nagios.Perfdata.Collector.Cache where
 
+import Data.Nagios.Perfdata.Collector.Rep
+
 import Crypto.MAC.SipHash
 import Data.Bifunctor (bimap)
 import qualified Data.Binary as B
@@ -12,8 +14,6 @@ import Data.Set
 import Data.Text
 import qualified Data.Text as T(unpack)
 import Data.Word
-
-type SourceDictCache = Set Word64
 
 emptyCache :: SourceDictCache
 emptyCache = fromList []
