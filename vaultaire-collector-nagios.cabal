@@ -26,7 +26,7 @@ library
                        nagios-perfdata >= 0.2.0,
                        marquise,
                        vaultaire-common,
-                       gearman-haskell >= 1.0.0,
+                       gearman-haskell >= 0.2.0,
                        optparse-applicative,
                        bytestring >= 0.10.2,
                        cereal,
