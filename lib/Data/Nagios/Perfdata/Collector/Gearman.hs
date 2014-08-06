@@ -59,7 +59,6 @@ maybeDecrypt aes ciphertext = case aes of
 setupGearman :: CollectorState -> IO ()
 setupGearman state@CollectorState{..} = do
     let CollectorOptions{..} = collectorOpts
-    runGearman optGearmanHost optGearmanPort $ runWorker optWorkerThreads $ do
-       _ <- addFunc (L.pack optFunctionName) (gearmanProcessDatum state) Nothing
-       work
+    runGearman optGearmanHost optGearmanPort $ do
+       _ <- work [(L.pack optFunctionName, gearmanProcessDatum state, Nothing)]
        return ()
