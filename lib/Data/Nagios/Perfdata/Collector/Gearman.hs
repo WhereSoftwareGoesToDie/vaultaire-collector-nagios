@@ -9,6 +9,9 @@ import Data.Nagios.Perfdata.Collector.Process
 import Data.Nagios.Perfdata.Collector.Rep
 import Data.Nagios.Perfdata.Collector.Util
 
+import Control.Concurrent
+import Control.Monad
+import Control.Monad.IO.Class
 import Crypto.Cipher.AES
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy.Char8 as L 
@@ -58,7 +61,13 @@ maybeDecrypt aes ciphertext = case aes of
 -- | Sets up the gearman worker daemon and runs a work loop
 setupGearman :: CollectorState -> IO ()
 setupGearman state@CollectorState{..} = do
-    let CollectorOptions{..} = collectorOpts
-    runGearman optGearmanHost optGearmanPort $ do
-       _ <- work [(L.pack optFunctionName, gearmanProcessDatum state, Nothing)]
-       return ()
+    let opts@CollectorOptions{..} = collectorOpts
+    somethingBadBox <- newEmptyMVar
+    replicateM_ optWorkerThreads $ setupConnection somethingBadBox opts
+    forever $ do
+        _ <- takeMVar somethingBadBox
+        setupConnection somethingBadBox opts
+  where
+    setupConnection box CollectorOptions{..} = forkIO $ runGearman optGearmanHost optGearmanPort $ do
+        somethingBad <- work [(L.pack optFunctionName, gearmanProcessDatum state, Nothing)]
+        liftIO $ putMVar box somethingBad
