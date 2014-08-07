@@ -38,27 +38,26 @@ runCollector = do
     if optGearmanMode
     then runCollector' opts setupGearman
     else runCollector' opts handleLines
-
--- | Sets up all necessary files/state then runs
-runCollector' :: CollectorOptions -> (CollectorState -> IO ()) -> IO ()
-runCollector' op@CollectorOptions{..} act = do
-    maybePut optDebug $ "Collector version " ++ show version ++ " starting."
-    files <- createSpoolFiles optNamespace
-    hashes <- newIORef emptyCache
-    aes <- if optGearmanMode
-    then do
-        key <- loadKey optKeyFile
-        case key of
-            Left e -> do
-                maybePut optDebug $ ("Error loading key: " ++ show e)
-                return Nothing
-            Right k -> return $ Just k
-    else
-        return Nothing
-    let state = CollectorState op aes files hashes optCacheFile
-    void $ getInitialCache state
-    act state
-    writeHashes state
+  where
+    runCollector' :: CollectorOptions -> (CollectorState -> IO ()) -> IO ()
+    runCollector' op@CollectorOptions{..} act = do
+        maybePut optDebug $ "Collector version " ++ show version ++ " starting."
+        files <- createSpoolFiles optNamespace
+        hashes <- newIORef emptyCache
+        aes <- if optGearmanMode
+        then do
+            key <- loadKey optKeyFile
+            case key of
+                Left e -> do
+                    maybePut optDebug $ ("Error loading key: " ++ show e)
+                    return Nothing
+                Right k -> return $ Just k
+        else
+            return Nothing
+        let state = CollectorState op aes files hashes optCacheFile
+        void $ getInitialCache state
+        act state
+        writeHashes state
 
 -- | Writes out the final state of the cache to the hash file
 writeHashes :: CollectorState -> IO ()
