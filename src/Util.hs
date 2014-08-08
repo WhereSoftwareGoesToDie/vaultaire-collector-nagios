@@ -2,7 +2,7 @@
 
 module Util where
 
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, second)
 import Data.Binary.IEEE754 (doubleToWord)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
@@ -31,7 +31,7 @@ type MetricThresholds = (Threshold,Threshold,Threshold,Threshold)
 
 perfdatumToThresholds :: Perfdata -> [ (String, MetricThresholds) ]
 perfdatumToThresholds p =
-    zip (map fst metricList) (map (metricThresholds . snd) metricList)
+    map (second metricThresholds) metricList
   where
     metricList         = perfdataMetrics p -- MetricList == [(String,Metric)]
     metricThresholds m = (warnValue m, critValue m, minValue m, maxValue m)
@@ -50,12 +50,12 @@ buildList :: Perfdata -> String -> UOM -> Bool -> [(Text, Text)]
 buildList datum metricName uom normalise = convert $ concat [baseList, counter, unit, nagiosPerfdata]
   where
     counter
-        | (uom == Counter) = [("_counter", "1")]
-        | otherwise        = []
+        | uom == Counter = [("_counter", "1")]
+        | otherwise      = []
     unit
         | normalise = [("_unit", "1")]
         | otherwise = []
-    nagiosPerfdata = concat $ map thresholdsToList interestingThresholds
+    nagiosPerfdata = concatMap thresholdsToList interestingThresholds
     interestingThresholds = [ x | x <- perfdatumToThresholds datum, fst x == metricName ]
     -- host, metricName and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
