@@ -62,12 +62,13 @@ maybeDecrypt aes ciphertext = case aes of
 setupGearman :: CollectorState -> IO ()
 setupGearman state@CollectorState{..} = do
     let opts@CollectorOptions{..} = collectorOpts
-    somethingBadBox <- newEmptyMVar
-    replicateM_ optWorkerThreads $ setupConnection somethingBadBox opts
+    disconnectErrorBox <- newEmptyMVar
+    replicateM_ optWorkerThreads $ setupConnection disconnectErrorBox opts
     forever $ do
-        _ <- takeMVar somethingBadBox
-        setupConnection somethingBadBox opts
+        err <- takeMVar disconnectErrorBox
+        maybePut optDebug $ "Worker thread disconnected form gearmanServer: " ++ err
+        setupConnection disconnectErrorBox opts
   where
     setupConnection box CollectorOptions{..} = forkIO $ runGearman optGearmanHost optGearmanPort $ do
-        somethingBad <- work [(L.pack optFunctionName, gearmanProcessDatum state, Nothing)]
-        liftIO $ putMVar box somethingBad
+        err <- work [(L.pack optFunctionName, gearmanProcessDatum state, Nothing)]
+        liftIO $ putMVar box err
