@@ -1,1 +1,4 @@
 vaultaire-collector-nagios
+/dist/
+/.cabal-sandbox/
+cabal.sandbox*
