@@ -2,7 +2,7 @@
 
 module Data.Nagios.Perfdata.Collector.Util where
 
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (bimap, second)
 import Data.Binary.IEEE754 (doubleToWord)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Char8 as C
@@ -30,23 +30,44 @@ getSourceDict :: [(Text, Text)] -> Either String SourceDict
 getSourceDict = 
     makeSourceDict . HashMap.fromList
 
--- | Builds an association list for conversion into a SourceDict    
-buildList :: Perfdata -> String -> UOM -> Bool -> [(Text, Text)] 
-buildList datum metric uom normalise = convert $ concat [baseList, counter, unit]
+
+type MetricThresholds = (Threshold, Threshold, Threshold, Threshold)
+
+perfdatumToThresholds :: Perfdata -> [(String, MetricThresholds)]
+perfdatumToThresholds perfdata =
+    map (second metricThresholds) metricList
+  where
+    metricList         = perfdataMetrics perfdata
+    metricThresholds m = (warnValue m, critValue m, minValue m, maxValue m)
+
+thresholdsToList :: MetricThresholds -> [(String, String)]
+thresholdsToList (warn, crit, minThreshold, maxThreshold) =
+    foldl filterOutNoThreshold [] $ zip nagiosPerfdataKeys [warn, crit, minThreshold, maxThreshold]
+  where
+    filterOutNoThreshold acc (_, NoThreshold) = acc
+    filterOutNoThreshold acc (k, DoubleThreshold v) = (k, show v):acc
+    nagiosPerfdataKeys = [ "_nagios_warn", "_nagios_crit", "_nagios_min", "_nagios_max" ]
+
+-- | Builds an association list for conversion into a SourceDict
+buildList :: Perfdata -> String -> UOM -> Bool -> [(Text, Text)]
+buildList datum metricName uom normalise = convert $ concat [baseList, counter, unit, nagiosThresholds]
   where
     counter
-        | (uom == Counter) = [("_counter", "1")]
-        | otherwise        = []
+        | uom == Counter = [("_counter", "1")]
+        | otherwise      = []
     unit
         | normalise = [("_unit", "1")]
         | otherwise = []
-    -- host, metric and service are collectively the primary key for
+    isInteresting = (== metricName) . fst
+    interestingThresholds = map snd $ filter isInteresting $ perfdatumToThresholds datum
+    nagiosThresholds = concatMap thresholdsToList interestingThresholds
+    -- host, metricName and service are collectively the primary key for
     -- this metric. As the nagios-perfdata package currently treats
     -- all values as floats, we also specify this as metadata for
     -- the presentation layer.
     host = perfdataHostname datum
     service = C.unpack $ perfdataServiceDescription datum
-    baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metric, service, "1", show uom]
+    baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metricName, service, "1", show uom]
     convert = map $ bimap T.pack fmtTag
     
 fmtTag :: String -> Text
