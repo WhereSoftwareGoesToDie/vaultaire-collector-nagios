@@ -22,7 +22,7 @@ pnp4nagios/npcd for perfdata processing is to add a line to the
 modification is included in this repository. Of course, this is quite
 awful; there will be better ways of doing this in the future.
 
-However, if you are using `[mod_gearman]`(https://labs.consol.de/nagios/mod-gearman/)
+However, if you are using [`mod_gearman`](https://labs.consol.de/nagios/mod-gearman/)
 then you can use this collector in gearman mode, which will set up
 gearman worker threads to do the writing.
 
