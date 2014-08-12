@@ -34,8 +34,8 @@ import Paths_vaultaire_collector_nagios (version)
 
 -- | Parses options off the command line, then runs the collector
 -- | or gearman collector daemon accordingly
-runCollector :: IO ()    
-runCollector = do 
+runCollector :: IO ()
+runCollector = do
     opts@CollectorOptions{..} <- parseOptions
     let logStartup = logInfoN $ T.pack $ concat ["Collector version ", show version, " starting."]
     action <- if optGearmanMode then
@@ -53,7 +53,7 @@ runCollector = do
             key <- loadKey optKeyFile
             case key of
                 Left e ->
-                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing) 
+                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing)
                 Right k -> return (return (), Just k)
         else
             return (return (), Nothing)
@@ -77,7 +77,7 @@ getInitialCache = do
     let CollectorOptions{..} = collectorOpts
     let setup = openFile optCacheFile ReadWriteMode
     let teardown = hClose
-    let action = (\h -> runReaderT (unCollector $ readCache h) state) 
+    let action = (\h -> runReaderT (unCollector $ readCache h) state)
     initialCache <- liftIO $ bracket setup teardown action
     liftIO $ writeIORef collectorHashes initialCache
   where
@@ -95,9 +95,9 @@ getInitialCache = do
             Right cache -> do
                 return cache
 
--- | Loads the AES key from the given file path                
+-- | Loads the AES key from the given file path
 loadKey :: String -> IO (Either IOException AES)
-loadKey fname = try $ S.readFile fname >>= return . initAES . trim 
+loadKey fname = try $ S.readFile fname >>= return . initAES . trim
   where
     trim = trim' . trim'
     trim' = S.reverse . S.dropWhile isBlank
@@ -125,11 +125,11 @@ processLine line = do
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
 handleLines :: Collector ()
 handleLines  = do
-    CollectorState{..} <- ask 
+    CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
     line <- liftIO $ try S.getLine
     case line of
-        Left err -> 
+        Left err ->
             unless (isEOFError err) $ logErrorN $ T.pack $ "Error reading perfdata: " ++ show err
         Right l -> do
             processLine l

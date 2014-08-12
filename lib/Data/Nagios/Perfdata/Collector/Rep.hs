@@ -48,7 +48,7 @@ newtype Collector a = Collector {
 } deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
 
 instance MonadLogger Collector where
-    monadLoggerLog _ _ level msg = do 
+    monadLoggerLog _ _ level msg = do
         CollectorState{..} <- ask
         let CollectorOptions{..} = collectorOpts
         if (level >= optLogLevel) then liftIO $ do
@@ -62,4 +62,4 @@ instance MonadLogger Collector where
         showLevel LevelInfo      = "[Info]"
         showLevel LevelWarn      = "[Warning]"
         showLevel LevelError     = "[Error]"
-        showLevel (LevelOther l) = concat ["[", show l, "]"]    
+        showLevel (LevelOther l) = concat ["[", show l, "]"]

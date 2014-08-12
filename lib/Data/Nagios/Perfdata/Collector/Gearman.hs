@@ -15,7 +15,7 @@ import Control.Monad.Logger
 import Control.Monad.Reader
 import Crypto.Cipher.AES
 import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Lazy.Char8 as L 
+import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Data.ByteString as S
 import qualified Data.Text as T
 
@@ -35,7 +35,7 @@ gearmanProcessDatum = do
             Right checkResult -> do
                 logDebugN $ T.pack $ concat ["Null trimmed data: ", (show . trimNulls) checkResult]
                 case (perfdataFromGearmanResult checkResult) of
-                    Left err -> do 
+                    Left err -> do
                         logErrorN $ T.pack $ "Error parsing check result: " ++ err
                         return $ Left $ Just (L.pack err)
                     Right datum -> do
@@ -49,13 +49,13 @@ gearmanProcessDatum = do
 
 -- | Decodes a job's data packet using Base 64
 decodeJob :: Maybe AES -> S.ByteString -> Either String S.ByteString
-decodeJob k d = case (B64.decode d) of 
+decodeJob k d = case (B64.decode d) of
     Right d' -> Right $ maybeDecrypt k d'
-    Left e   -> Left e 
+    Left e   -> Left e
 
--- | Possible decrypts payload (based on whether key is given)     
+-- | Possible decrypts payload (based on whether key is given)
 maybeDecrypt :: Maybe AES -> S.ByteString -> S.ByteString
-maybeDecrypt aes ciphertext = case aes of 
+maybeDecrypt aes ciphertext = case aes of
     Nothing -> ciphertext -- Nothing to do, we assume the input is already in cleartext.
     Just k -> decryptECB k ciphertext
 

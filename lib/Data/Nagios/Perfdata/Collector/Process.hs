@@ -51,7 +51,7 @@ queueDatumSourceDict datum = do
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
             Right dict -> queueSourceDictUpdate spool addr dict
- 
+
 processDatum :: Perfdata -> Collector ()
 processDatum datum = do
     CollectorState{..} <- ask

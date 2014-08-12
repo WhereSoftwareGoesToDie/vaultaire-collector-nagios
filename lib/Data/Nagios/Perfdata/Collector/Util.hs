@@ -20,9 +20,9 @@ import Marquise.Client
 
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or
--- ':'). 
+-- ':').
 getSourceDict :: [(Text, Text)] -> Either String SourceDict
-getSourceDict = 
+getSourceDict =
     makeSourceDict . HashMap.fromList
 
 
@@ -64,7 +64,7 @@ buildList datum metricName uom normalise = convert $ concat [baseList, counter, 
     service = C.unpack $ perfdataServiceDescription datum
     baseList = zip ["host", "metric", "service", "_float", "_uom"] [host, metricName, service, "1", show uom]
     convert = map $ bimap T.pack fmtTag
-    
+
 fmtTag :: String -> Text
 fmtTag = T.pack . map ensureValid
 
@@ -74,21 +74,21 @@ ensureValid ':' = '-'
 ensureValid x = x
 
 -- | Returns the unique identifier for the named metric in the supplied
--- perfdatum. This is used to calculate the address. 
+-- perfdatum. This is used to calculate the address.
 getMetricId :: Perfdata -> String -> S.ByteString
-getMetricId datum metric = 
+getMetricId datum metric =
     let host = perfdataHostname datum in
     let service = S.unpack $ perfdataServiceDescription datum in
     "host:" +.+ C.pack host +.+ ",metric:" +.+ C.pack metric +.+ ",service:" +.+ S.pack service +.+ ","
 
--- | Returns the Vaultaire address for the specified metric. 
+-- | Returns the Vaultaire address for the specified metric.
 getAddress :: Perfdata -> String -> Address
 getAddress p = hashIdentifier . getMetricId p
 
 -- | Given a Perfdata object, extract each metric into a list of
 -- (address,value) tuples.
 unpackMetrics :: Perfdata -> [(Address, Either String Word64)]
-unpackMetrics datum = 
+unpackMetrics datum =
     map (bimap (getAddress datum) extractValueWord) (perfdataMetrics datum)
   where
     extractValueWord :: Metric -> Either String Word64

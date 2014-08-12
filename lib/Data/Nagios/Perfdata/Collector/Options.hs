@@ -35,7 +35,7 @@ collectorOptions = CollectorOptions
          <> help "Location to read/write cached SourceDicts")
     <*> strOption
         (long "log-file"
-         <> short 'l'         
+         <> short 'l'
          <> value "nagios-perfdata-collector.log"
          <> metavar "LOG-FILE"
          <> help "Location to log to")
