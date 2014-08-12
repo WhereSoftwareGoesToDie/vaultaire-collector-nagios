@@ -10,12 +10,16 @@ import Data.Nagios.Perfdata.Collector.Rep
 import Data.Nagios.Perfdata.Collector.Util
 
 import System.IO
+import Control.Monad.IO.Class
+import Control.Monad.Logger
+import Control.Monad.Reader
 import Data.Word
 import Data.Bifunctor (second)
 import Data.Maybe
 import Data.Either (partitionEithers)
 import Data.Set hiding (map,partition)
 import Data.IORef
+import qualified Data.Text as T
 
 import Data.Nagios.Perfdata
 import Data.Nagios.Perfdata.Metric
@@ -23,16 +27,17 @@ import Marquise.Client
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum. Does not queue redundant updates
-queueDatumSourceDict :: CollectorState -> Perfdata -> IO ()
-queueDatumSourceDict CollectorState{..} datum = do
+queueDatumSourceDict :: Perfdata -> Collector ()
+queueDatumSourceDict datum = do
+    CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
-    hashes <- readIORef collectorHashes
+    hashes <- liftIO $ readIORef collectorHashes
     let metrics = map (\(s, m) -> (s, metricUOM m)) $ perfdataMetrics datum
     let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges optNormalise hashes) metrics
     let newHashes = fromList hashUpdates `union` hashes
-    writeIORef collectorHashes newHashes
-    mapM_ (maybePut optDebug) (map (\x -> "Writing source dict: " ++ show x) sdUpdates)
-    mapM_ (uncurry maybeUpdate) sdUpdates
+    liftIO $ writeIORef collectorHashes newHashes
+    mapM_ (logDebugN . T.pack) (map (\x -> "Writing source dict: " ++ show x) sdUpdates)
+    liftIO $ mapM_ (uncurry $ maybeUpdate collectorSpoolFiles) sdUpdates
   where
     getChanges :: Bool -> Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
     getChanges normalise hashes (metric, uom)
@@ -42,25 +47,25 @@ queueDatumSourceDict CollectorState{..} datum = do
                 assocList = buildList datum metric uom normalise
                 currentHash = hashList assocList
                 changes = Just (currentHash, (getAddress datum metric, getSourceDict assocList))
-    maybeUpdate addr sd =
+    maybeUpdate spool addr sd =
         case sd of
             Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
-            Right dict -> queueSourceDictUpdate collectorSpoolFiles addr dict
+            Right dict -> queueSourceDictUpdate spool addr dict
  
-processDatum :: CollectorState -> Perfdata -> IO ()
-processDatum state@CollectorState{..} datum = do
+processDatum :: Perfdata -> Collector ()
+processDatum datum = do
+    CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
     let (badPoints, goodPoints) = partitionPoints . unpackMetrics $ datum
-    maybePut optDebug $ concat ["Decoded datum: ", show datum, " - ", show (length goodPoints), " valid metrics"]
-    mapM_ emitWarning badPoints
-    mapM_ (uncurry (sendPoint optDebug (datumTimestamp datum))) goodPoints
-    queueDatumSourceDict state datum
+    logDebugN $ T.pack $ concat ["Decoded datum: ", show datum, " - ", show (length goodPoints), " valid metrics"]
+    mapM_ (logWarnN . T.pack . flip (++) "Warning: failed decoding datapoint: ") badPoints
+    mapM_ (uncurry (sendPoint collectorSpoolFiles (datumTimestamp datum))) goodPoints
+    queueDatumSourceDict datum
   where
     partitionPoints = partitionEithers . map shiftEither
     shiftEither :: (a, Either b c) -> Either b (a,c)
     shiftEither (x, y) = second (x,) y
-    emitWarning err = hPutStrLn stderr $ "Warning: error decoding datapoint: " ++ err
-    sendPoint debug ts addr point = do
-        maybePut debug $ concat["Writing datum ", show point, " with address ", show addr, " and timestamp ", show ts]
-        queueSimple collectorSpoolFiles addr ts point
+    sendPoint spool ts addr point = do
+        logDebugN $ T.pack $ concat["Writing datum ", show point, " with address ", show addr, " and timestamp ", show ts]
+        liftIO $ queueSimple spool addr ts point
     datumTimestamp = TimeStamp . fromIntegral . perfdataTimestamp

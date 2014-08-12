@@ -18,11 +18,6 @@ import Marquise.Client
 (+.+) :: S.ByteString -> S.ByteString -> S.ByteString
 (+.+) = S.append
 
--- | Convenience functions for debugging
-maybePut :: Bool -> String -> IO ()
-maybePut True s = putStrLn s
-maybePut False _ = return ()
-
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or
 -- ':'). 

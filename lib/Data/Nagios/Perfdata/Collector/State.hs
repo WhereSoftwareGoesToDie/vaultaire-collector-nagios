@@ -11,14 +11,16 @@ import Data.Nagios.Perfdata.Collector.Gearman(setupGearman)
 import Data.Nagios.Perfdata.Collector.Options
 import Data.Nagios.Perfdata.Collector.Process
 import Data.Nagios.Perfdata.Collector.Rep
-import Data.Nagios.Perfdata.Collector.Util
 
 import Control.Exception
+import Control.Monad.IO.Class
+import Control.Monad.Logger
 import Control.Monad.Reader
 import Crypto.Cipher.AES
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 import Data.IORef
+import qualified Data.Text as T
 import System.IO
 import System.IO.Error
 
@@ -35,54 +37,60 @@ import Paths_vaultaire_collector_nagios (version)
 runCollector :: IO ()    
 runCollector = do 
     opts@CollectorOptions{..} <- parseOptions
-    if optGearmanMode
-    then runCollector' opts setupGearman
-    else runCollector' opts handleLines
+    let logStartup = logInfoN $ T.pack $ concat ["Collector version ", show version, " starting."]
+    action <- if optGearmanMode then
+        return setupGearman
+    else
+        return handleLines
+    runCollector' opts (logStartup >> getInitialCache >> action >> writeCache)
   where
-    runCollector' :: CollectorOptions -> (CollectorState -> IO ()) -> IO ()
-    runCollector' op@CollectorOptions{..} act = do
-        maybePut optDebug $ "Collector version " ++ show version ++ " starting."
-        files <- createSpoolFiles optNamespace
+    runCollector' :: CollectorOptions -> Collector () -> IO ()
+    runCollector' op@CollectorOptions{..} (Collector act) = do
         hashes <- newIORef emptyCache
-        aes <- if optGearmanMode
+        files <- createSpoolFiles optNamespace
+        (aesLog, aes) <- if optGearmanMode
         then do
             key <- loadKey optKeyFile
             case key of
-                Left e -> do
-                    maybePut optDebug $ ("Error loading key: " ++ show e)
-                    return Nothing
-                Right k -> return $ Just k
+                Left e ->
+                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing) 
+                Right k -> return (return (), Just k)
         else
-            return Nothing
-        let state = CollectorState op aes files hashes optCacheFile
-        void $ getInitialCache state
-        act state
-        writeHashes state
+            return (return (), Nothing)
+        let state = CollectorState op aes files hashes
+        runReaderT (unCollector aesLog >> act) state
 
 -- | Writes out the final state of the cache to the hash file
-writeHashes :: CollectorState -> IO ()
-writeHashes CollectorState{..}= do
-    cache <- readIORef collectorHashes
+writeCache :: Collector ()
+writeCache = do
+    CollectorState{..} <- ask
+    let CollectorOptions{..} = collectorOpts
+    cache <- liftIO $ readIORef collectorHashes
     let encodedCache = encodeCache cache
-    liftIO $ bracket (openFile collectorHashFile WriteMode) (hClose) (\h -> L.hPut h encodedCache)
+    liftIO $ bracket (openFile optCacheFile WriteMode) (hClose) (\h -> L.hPut h encodedCache)
 
 -- | Attempts to generate an initial cache of SourceDicts from the given file path
 -- If the file does not exist, or is improperly formatted returns an empty cache
-getInitialCache :: CollectorState -> IO ()
-getInitialCache CollectorState{..} = do
+getInitialCache :: Collector ()
+getInitialCache = do
+    state@CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
-    initialCache <- bracket (openFile collectorHashFile ReadWriteMode) (hClose) (readCache optDebug)
-    writeIORef collectorHashes initialCache
+    let setup = openFile optCacheFile ReadWriteMode
+    let teardown = hClose
+    let action = (\h -> runReaderT (unCollector $ readCache h) state) 
+    initialCache <- liftIO $ bracket setup teardown action
+    liftIO $ writeIORef collectorHashes initialCache
   where
-    readCache debug h = do
-        (maybePut debug) "Reading cache file"
-        contents <- L.hGetContents h
+    readCache :: Handle -> Collector SourceDictCache
+    readCache h = do
+        CollectorState{..} <- ask
+        logDebugN $ T.pack "Reading cache file"
+        contents <- liftIO $ L.hGetContents h
         let result = decodeCache contents
-        (maybePut debug) "Decoding cache file"
+        logDebugN $ T.pack "Decoding cache file"
         case result of
             Left e -> do
-                (maybePut debug) $ concat ["Error decoding hash file: ", show e]
-                (maybePut debug) $ "Continuing with empty initial cache"
+                logWarnN $ T.pack $ concat ["Error decoding hash file: ", show e, " Continuing with empty initial cache"]
                 return emptyCache
             Right cache -> do
                 return cache
@@ -98,27 +106,31 @@ loadKey fname = try $ S.readFile fname >>= return . initAES . trim
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
 -- for each metric's metadata.
-processLine :: CollectorState -> S.ByteString -> IO ()
-processLine state@CollectorState{..} line = do
+processLine :: S.ByteString -> Collector ()
+processLine line = do
+    CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
-    (maybePut optDebug) $ "Decoding line: " ++ show line
+    logDebugN $ T.pack $ "Decoding line: " ++ show line
     parsedDatum <- case perfdataFromDefaultTemplate line of
         Left err -> do
-            (maybePut optDebug) $ "Error decoding perfdata (" ++ show line ++ "): " ++ show err
+            logErrorN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
             return Nothing
         Right unnormalisedDatum -> return $ Just $ if (optNormalise)
                                           then convertPerfdataToBase unnormalisedDatum
                                           else unnormalisedDatum
     case parsedDatum of
         Nothing -> return ()
-        Just datum -> processDatum state datum
+        Just datum -> processDatum datum
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
-handleLines :: CollectorState -> IO ()
-handleLines state@CollectorState{..} = do
+handleLines :: Collector ()
+handleLines  = do
+    CollectorState{..} <- ask 
     let CollectorOptions{..} = collectorOpts
-    line <- try S.getLine
+    line <- liftIO $ try S.getLine
     case line of
-        Left err ->
-            unless (isEOFError err) $ (maybePut optDebug) $ "Error reading perfdata: " ++ show err
-        Right l -> processLine state l >> handleLines state
+        Left err -> 
+            unless (isEOFError err) $ logErrorN $ T.pack $ "Error reading perfdata: " ++ show err
+        Right l -> do
+            processLine l
+            handleLines

@@ -33,10 +33,16 @@ collectorOptions = CollectorOptions
          <> value "/var/tmp/collector_hash_cache"
          <> metavar "CACHE-FILE"
          <> help "Location to read/write cached SourceDicts")
-    <*> switch
-        (long "debug"
-         <> short 'd'
-         <> help "Write debugging output")
+    <*> strOption
+        (long "log-file"
+         <> short 'l'         
+         <> value "nagios-perfdata-collector.log"
+         <> metavar "LOG-FILE"
+         <> help "Location to log to")
+    <*> (read <$> strOption
+        (long "log-verbosity"
+         <> short 'v'
+         <> help "Verbosity level at which to write log output"))
     <*> switch
         (long "normalise-metrics"
          <> short 's'

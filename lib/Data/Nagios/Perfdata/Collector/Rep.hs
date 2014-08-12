@@ -1,11 +1,22 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards            #-}
+
 module Data.Nagios.Perfdata.Collector.Rep where
 
 import Crypto.Cipher.AES
+import qualified Data.ByteString as S
 import Data.IORef
-import Data.Set
+import Data.Monoid
+import Data.Set hiding (map)
 import Data.Word
+import Control.Applicative
+import Control.Monad.IO.Class
+import Control.Monad.Logger
+import Control.Monad.Reader
+import System.Log.FastLogger
 
 import Marquise.Client
+import Vaultaire.Types
 
 type SourceDictCache = Set Word64
 
@@ -13,7 +24,8 @@ type SourceDictCache = Set Word64
 data CollectorOptions = CollectorOptions {
     optNamespace     :: String,
     optCacheFile     :: FilePath,
-    optDebug         :: Bool,
+    optLogFile       :: FilePath,
+    optLogLevel      :: LogLevel,
     optNormalise     :: Bool,
     optGearmanMode   :: Bool,
     optGearmanHost   :: String,
@@ -28,6 +40,26 @@ data CollectorState = CollectorState {
     collectorOpts         :: CollectorOptions,
     collectorAES          :: Maybe AES,
     collectorSpoolFiles   :: SpoolFiles,
-    collectorHashes       :: IORef SourceDictCache,
-    collectorHashFile     :: FilePath
+    collectorHashes       :: IORef SourceDictCache
 }
+
+newtype Collector a = Collector {
+    unCollector :: (ReaderT CollectorState IO a)
+} deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
+
+instance MonadLogger Collector where
+    monadLoggerLog _ _ level msg = do 
+        CollectorState{..} <- ask
+        let CollectorOptions{..} = collectorOpts
+        if (level >= optLogLevel) then liftIO $ do
+            currTime <- getCurrentTimeNanoseconds
+            let logPrefix = mconcat $ map toLogStr [showLevel level, " ",  show currTime, " "]
+            let logMsg = logPrefix <> (toLogStr msg) <> (toLogStr "\n")
+            (S.appendFile optLogFile) $ fromLogStr logMsg
+        else return ()
+      where
+        showLevel LevelDebug     = "[Debug]"
+        showLevel LevelInfo      = "[Info]"
+        showLevel LevelWarn      = "[Warning]"
+        showLevel LevelError     = "[Error]"
+        showLevel (LevelOther l) = concat ["[", show l, "]"]    
