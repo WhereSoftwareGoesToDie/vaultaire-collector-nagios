@@ -9,7 +9,6 @@ import Data.Nagios.Perfdata.Collector.Cache
 import Data.Nagios.Perfdata.Collector.Rep
 import Data.Nagios.Perfdata.Collector.Util
 
-import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Reader
@@ -37,7 +36,7 @@ queueDatumSourceDict datum = do
     let newHashes = fromList hashUpdates `union` hashes
     liftIO $ writeIORef collectorHashes newHashes
     mapM_ (logDebugN . T.pack) (map (\x -> "Writing source dict: " ++ show x) sdUpdates)
-    liftIO $ mapM_ (uncurry $ maybeUpdate collectorSpoolFiles) sdUpdates
+    mapM_ (uncurry $ maybeUpdate collectorSpoolFiles) sdUpdates
   where
     getChanges :: Bool -> Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
     getChanges normalise hashes (metric, uom)
@@ -49,8 +48,8 @@ queueDatumSourceDict datum = do
                 changes = Just (currentHash, (getAddress datum metric, getSourceDict assocList))
     maybeUpdate spool addr sd =
         case sd of
-            Left err -> hPutStrLn stderr $ "Error updating source dict: " ++ show err
-            Right dict -> queueSourceDictUpdate spool addr dict
+            Left err -> logWarnN $ T.pack $ "Error updating source dict: " ++ show err
+            Right dict -> liftIO $ queueSourceDictUpdate spool addr dict
 
 processDatum :: Perfdata -> Collector ()
 processDatum datum = do

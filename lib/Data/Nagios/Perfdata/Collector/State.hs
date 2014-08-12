@@ -113,7 +113,7 @@ processLine line = do
     logDebugN $ T.pack $ "Decoding line: " ++ show line
     parsedDatum <- case perfdataFromDefaultTemplate line of
         Left err -> do
-            logErrorN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
+            logWarnN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
             return Nothing
         Right unnormalisedDatum -> return $ Just $ if (optNormalise)
                                           then convertPerfdataToBase unnormalisedDatum
