@@ -21,6 +21,8 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 import Data.IORef
 import qualified Data.Text as T
+import qualified Network.Socket as N
+import qualified Network.Socket.ByteString as NBS
 import System.IO
 import System.IO.Error
 
@@ -57,8 +59,57 @@ runCollector = do
                 Right k -> return (return (), Just k)
         else
             return (return (), Nothing)
-        let state = CollectorState op aes files hashes
-        runReaderT (unCollector aesLog >> act) state
+        (connLog, conn) <- if optTelemetry
+        then do
+            result <- connect optTelemetryHost optTelemetryPort
+            case result of
+                Left e ->
+                    return (logWarnN $ T.pack $ "Error setting up telemetry connection: " ++ show e, Nothing)
+                Right success -> return (return (), Just success)
+        else
+            return (return (), Nothing)        
+        let state = CollectorState op aes files hashes conn
+        let (Collector setup)    = (aesLog >> connLog)
+        let (Collector teardown) = cleanup
+        runReaderT (setup >> act >> teardown) state
+    connect :: String -> String -> IO (Either String Connection)
+    connect host port = do
+        sock <- N.socket N.AF_INET N.Stream 6 -- Create new ipv4 TCP socket.
+        ai <- getHostAddress host port
+        case ai of 
+            Nothing -> return $ Left $ ("could not resolve address" ++ host)
+            Just x  -> do
+                N.connect sock $ (N.addrAddress x)
+                return $ Right $ Connection host port sock
+    cleanup :: Collector ()
+    cleanup = do
+        CollectorState{..} <- ask
+        case collectorTelemetryConn of
+            Nothing -> return ()
+            Just Connection{..} -> liftIO $ N.sClose sock
+    getHostAddress :: String -> String -> IO (Maybe N.AddrInfo)
+    getHostAddress host port = do
+        ai <- N.getAddrInfo hints (Just host) (Just port)
+        case ai of 
+            (x:_) -> return $ Just x
+            [] -> return Nothing
+      where
+        hints = Just $ N.defaultHints { 
+            N.addrProtocol = 6,
+            N.addrFamily   = N.AF_INET,
+            N.addrFlags    = [ N.AI_NUMERICSERV ]
+        }
+
+telemetryOut :: S.ByteString -> Collector ()
+telemetryOut output = do
+    CollectorState{..} <- ask
+    case collectorTelemetryConn of
+        Nothing -> return ()
+        Just Connection{..} -> do        
+            let expected = S.length output
+            sent <- liftIO $ NBS.send sock output
+            when (sent /= expected) $ logWarnN $ T.pack $ concat
+                ["Telemetry send failed: only sent ", show sent, " bytes out of ", show expected]
 
 -- | Writes out the final state of the cache to the hash file
 writeCache :: Collector ()

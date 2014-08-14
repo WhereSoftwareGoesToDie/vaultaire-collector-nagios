@@ -33,12 +33,6 @@ collectorOptions = CollectorOptions
          <> value "/var/tmp/collector_hash_cache"
          <> metavar "CACHE-FILE"
          <> help "Location to read/write cached SourceDicts")
-    <*> strOption
-        (long "log-file"
-         <> short 'l'
-         <> value "nagios-perfdata-collector.log"
-         <> metavar "LOG-FILE"
-         <> help "Location to log to")
     <*> (read <$> strOption
         (long "log-verbosity"
          <> short 'v'
@@ -81,3 +75,17 @@ collectorOptions = CollectorOptions
          <> value ""
          <> metavar "KEY-FILE"
          <> help "File from which to read AES key to decrypt check results. If unspecified, results are assumed to be in cleartext.")
+    <*> switch
+        (long "telemetry"
+         <> short 't'
+         <> help "Run telemetry")
+    <*> strOption
+        (long "telemetry-host"
+         <> value "127.0.0.1"
+         <> metavar "TELEMETRYHOST"
+         <> help "Host to send telemetry data to")
+    <*> strOption
+        (long "telemetry-port"
+         <> value "9447"
+         <> metavar "TELEMETRYPORT"
+         <> help "Port to use for telemetry.")
