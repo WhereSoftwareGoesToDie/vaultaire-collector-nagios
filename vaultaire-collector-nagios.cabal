@@ -1,5 +1,5 @@
 name:                vaultaire-collector-nagios
-version:             3.2.0
+version:             3.2.1
 synopsis:            Vaultaire collector for Nagios perfdata
 homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
@@ -45,7 +45,7 @@ library
                        transformers,
                        monad-logger,
                        fast-logger,
-                       network
+                       network < 2.6
 
   default-language:    Haskell2010
   ghc-options:         -O2
