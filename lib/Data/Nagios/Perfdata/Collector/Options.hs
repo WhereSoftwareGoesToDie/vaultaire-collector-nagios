@@ -27,16 +27,10 @@ collectorOptions = CollectorOptions
          <> value "perfdata"
          <> metavar "MARQUISE-NAMESPACE"
          <> help "Marquise namespace to write to. Must be unique on a host basis.")
-    <*> strOption
-        (long "cache-file"
-         <> short 'c'
-         <> value "/var/tmp/collector_hash_cache"
-         <> metavar "CACHE-FILE"
-         <> help "Location to read/write cached SourceDicts")
-    <*> switch
-        (long "debug"
-         <> short 'd'
-         <> help "Write debugging output")
+    <*> (read <$> strOption
+        (long "log-verbosity"
+         <> short 'v'
+         <> help "Verbosity level at which to write log output"))
     <*> switch
         (long "normalise-metrics"
          <> short 's'
@@ -75,3 +69,17 @@ collectorOptions = CollectorOptions
          <> value ""
          <> metavar "KEY-FILE"
          <> help "File from which to read AES key to decrypt check results. If unspecified, results are assumed to be in cleartext.")
+    <*> switch
+        (long "telemetry"
+         <> short 't'
+         <> help "Run telemetry")
+    <*> strOption
+        (long "telemetry-host"
+         <> value "127.0.0.1"
+         <> metavar "TELEMETRYHOST"
+         <> help "Host to send telemetry data to")
+    <*> strOption
+        (long "telemetry-port"
+         <> value "9447"
+         <> metavar "TELEMETRYPORT"
+         <> help "Port to use for telemetry.")
