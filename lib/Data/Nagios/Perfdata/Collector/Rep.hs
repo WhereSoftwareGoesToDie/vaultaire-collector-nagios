@@ -6,8 +6,6 @@ module Data.Nagios.Perfdata.Collector.Rep where
 import Crypto.Cipher.AES
 import qualified Data.ByteString.Char8 as S(hPutStrLn)
 import Data.Monoid
-import Data.Set hiding (map)
-import Data.Word
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Logger
@@ -18,8 +16,6 @@ import System.Log.FastLogger
 
 import Marquise.Client
 import Vaultaire.Types
-
-type SourceDictCache = Set Word64
 
 -- Encapsulates the possible flags and switches for both collectors
 data CollectorOptions = CollectorOptions {
