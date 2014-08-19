@@ -1,5 +1,5 @@
 name:                vaultaire-collector-nagios
-version:             3.2.1
+version:             3.3.0
 synopsis:            Vaultaire collector for Nagios perfdata
 homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
@@ -14,7 +14,6 @@ cabal-version:       >=1.20
 library
   hs-source-dirs:      lib
   exposed-modules:     Data.Nagios.Perfdata.Collector.State
-                       Data.Nagios.Perfdata.Collector.Cache
                        Data.Nagios.Perfdata.Collector.Util
                        Data.Nagios.Perfdata.Collector.Options
                        Data.Nagios.Perfdata.Collector.Gearman

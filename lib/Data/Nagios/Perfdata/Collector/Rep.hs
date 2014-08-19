@@ -5,7 +5,6 @@ module Data.Nagios.Perfdata.Collector.Rep where
 
 import Crypto.Cipher.AES
 import qualified Data.ByteString.Char8 as S(hPutStrLn)
-import Data.IORef
 import Data.Monoid
 import Data.Set hiding (map)
 import Data.Word
@@ -25,7 +24,6 @@ type SourceDictCache = Set Word64
 -- Encapsulates the possible flags and switches for both collectors
 data CollectorOptions = CollectorOptions {
     optNamespace     :: String,
-    optCacheFile     :: FilePath,
     optLogLevel      :: LogLevel,
     optNormalise     :: Bool,
     optGearmanMode   :: Bool,
@@ -44,7 +42,6 @@ data CollectorState = CollectorState {
     collectorOpts          :: CollectorOptions,
     collectorAES           :: Maybe AES,
     collectorSpoolFiles    :: SpoolFiles,
-    collectorHashes        :: IORef SourceDictCache,
     collectorTelemetryConn :: Maybe Connection
 }
 

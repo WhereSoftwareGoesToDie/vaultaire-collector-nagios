@@ -6,7 +6,6 @@
 
 module Data.Nagios.Perfdata.Collector.State where
 
-import Data.Nagios.Perfdata.Collector.Cache
 import Data.Nagios.Perfdata.Collector.Gearman(setupGearman)
 import Data.Nagios.Perfdata.Collector.Options
 import Data.Nagios.Perfdata.Collector.Process
@@ -18,12 +17,9 @@ import Control.Monad.Logger
 import Control.Monad.Reader
 import Crypto.Cipher.AES
 import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as L
-import Data.IORef
 import qualified Data.Text as T
 import qualified Network.Socket as N
 import qualified Network.Socket.ByteString as NBS
-import System.IO
 import System.IO.Error
 
 import Data.Nagios.Perfdata
@@ -43,11 +39,10 @@ runCollector = do
     let action
           | optGearmanMode = setupGearman
           | otherwise = handleLines
-    runCollector' opts (logStartup >> getInitialCache >> action >> writeCache)
+    runCollector' opts (logStartup >> action)
   where
     runCollector' :: CollectorOptions -> Collector () -> IO ()
     runCollector' op@CollectorOptions{..} (Collector act) = do
-        hashes <- newIORef emptyCache
         files <- createSpoolFiles optNamespace
         (aesLog, aes) <- if optGearmanMode
         then do
@@ -67,7 +62,7 @@ runCollector = do
                 Right success -> return (return (), Just success)
         else
             return (return (), Nothing)
-        let state = CollectorState op aes files hashes conn
+        let state = CollectorState op aes files conn
         let (Collector setup)    = aesLog >> connLog
         let (Collector teardown) = cleanup
         runReaderT (setup >> act >> teardown) state
@@ -109,41 +104,6 @@ telemetryOut output = do
             sent <- liftIO $ NBS.send sock output
             when (sent /= expected) $ logWarnN $ T.pack $ concat
                 ["Telemetry send failed: only sent ", show sent, " bytes out of ", show expected]
-
--- | Writes out the final state of the cache to the hash file
-writeCache :: Collector ()
-writeCache = do
-    CollectorState{..} <- ask
-    let CollectorOptions{..} = collectorOpts
-    cache <- liftIO $ readIORef collectorHashes
-    let encodedCache = encodeCache cache
-    liftIO $ withFile optCacheFile WriteMode (`L.hPut` encodedCache)
-
--- | Attempts to generate an initial cache of SourceDicts from the given file path
--- If the file does not exist, or is improperly formatted returns an empty cache
-getInitialCache :: Collector ()
-getInitialCache = do
-    state@CollectorState{..} <- ask
-    let CollectorOptions{..} = collectorOpts
-    let setup = openFile optCacheFile ReadWriteMode
-    let teardown = hClose
-    let action h = runReaderT (unCollector $ readCache h) state
-    initialCache <- liftIO $ bracket setup teardown action
-    liftIO $ writeIORef collectorHashes initialCache
-  where
-    readCache :: Handle -> Collector SourceDictCache
-    readCache h = do
-        CollectorState{..} <- ask
-        logDebugN $ T.pack "Reading cache file"
-        contents <- liftIO $ L.hGetContents h
-        let result = decodeCache contents
-        logDebugN $ T.pack "Decoding cache file"
-        case result of
-            Left e -> do
-                logWarnN $ T.pack $ concat ["Error decoding hash file: ", show e, " Continuing with empty initial cache"]
-                return emptyCache
-            Right cache ->
-                return cache
 
 -- | Loads the AES key from the given file path
 loadKey :: String -> IO (Either IOException AES)

@@ -5,19 +5,14 @@
 
 module Data.Nagios.Perfdata.Collector.Process where
 
-import Data.Nagios.Perfdata.Collector.Cache
 import Data.Nagios.Perfdata.Collector.Rep
 import Data.Nagios.Perfdata.Collector.Util
 
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Control.Monad.Reader
-import Data.Word
 import Data.Bifunctor (second)
-import Data.Maybe
 import Data.Either (partitionEithers)
-import Data.Set hiding (map,partition)
-import Data.IORef
 import qualified Data.Text as T
 
 import Data.Nagios.Perfdata
@@ -30,22 +25,14 @@ queueDatumSourceDict :: Perfdata -> Collector ()
 queueDatumSourceDict datum = do
     CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
-    hashes <- liftIO $ readIORef collectorHashes
     let metrics = map (second metricUOM) $ perfdataMetrics datum
-    let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges optNormalise hashes) metrics
-    let newHashes = fromList hashUpdates `union` hashes
-    liftIO $ writeIORef collectorHashes newHashes
+    let sdUpdates = map (getUpdates optNormalise) metrics
     mapM_ (logDebugN . T.pack . (\x -> "Writing source dict: " ++ show x)) sdUpdates
     mapM_ (uncurry $ maybeUpdate collectorSpoolFiles) sdUpdates
   where
-    getChanges :: Bool -> Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
-    getChanges normalise hashes (metric, uom)
-        | member currentHash hashes = Nothing
-        | otherwise = changes
-            where
-                assocList = buildList datum metric uom normalise
-                currentHash = hashList assocList
-                changes = Just (currentHash, (getAddress datum metric, getSourceDict assocList))
+    getUpdates :: Bool -> (String, UOM) -> (Address, Either String SourceDict)
+    getUpdates normalise (metric, uom) =
+        (getAddress datum metric, getSourceDict $ buildList datum metric uom normalise)
     maybeUpdate spool addr sd =
         case sd of
             Left err -> logWarnN $ T.pack $ "Error updating source dict: " ++ show err

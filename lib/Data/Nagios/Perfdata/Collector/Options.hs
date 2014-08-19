@@ -27,12 +27,6 @@ collectorOptions = CollectorOptions
          <> value "perfdata"
          <> metavar "MARQUISE-NAMESPACE"
          <> help "Marquise namespace to write to. Must be unique on a host basis.")
-    <*> strOption
-        (long "cache-file"
-         <> short 'c'
-         <> value "/var/tmp/collector_hash_cache"
-         <> metavar "CACHE-FILE"
-         <> help "Location to read/write cached SourceDicts")
     <*> (read <$> strOption
         (long "log-verbosity"
          <> short 'v'
