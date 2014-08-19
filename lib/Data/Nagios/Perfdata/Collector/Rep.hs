@@ -4,7 +4,6 @@
 module Data.Nagios.Perfdata.Collector.Rep where
 
 import Crypto.Cipher.AES
-import qualified Data.ByteString as S hiding (hPutStrLn)
 import qualified Data.ByteString.Char8 as S(hPutStrLn)
 import Data.IORef
 import Data.Monoid
@@ -56,7 +55,7 @@ data Connection = Connection {
 }
 
 newtype Collector a = Collector {
-    unCollector :: (ReaderT CollectorState IO a)
+    unCollector :: ReaderT CollectorState IO a
 } deriving (Functor, Applicative, Monad, MonadIO, MonadReader CollectorState)
 
 instance MonadLogger Collector where
@@ -66,8 +65,7 @@ instance MonadLogger Collector where
         when (level >= optLogLevel) $ liftIO $ do
             currTime <- getCurrentTimeNanoseconds
             let logPrefix = mconcat $ map toLogStr [showLevel level, " ",  show currTime, " "]
-            let logMsg = logPrefix <> (toLogStr msg)
-            let output = fromLogStr logMsg
+            let output = fromLogStr $ logPrefix <> toLogStr msg
             S.hPutStrLn stdout output
             when (level == LevelError) $ S.hPutStrLn stderr output
       where

@@ -27,29 +27,29 @@ gearmanProcessDatum :: Collector WorkerFunc
 gearmanProcessDatum = do
     state@CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
-    return (\Job{..} -> (flip runReaderT) state $ unCollector $ do
-        case (clearBytes collectorAES jobData) of
+    return $ \Job{..} -> flip runReaderT state $ unCollector $
+        case clearBytes collectorAES jobData of
             Left e -> do
                 logErrorN $ T.pack $ concat ["error decoding: ", show e, " data: ", show jobData]
                 return $ Left . Just $ L.pack e
             Right checkResult -> do
-                logDebugN $ T.pack $ concat ["Null trimmed data: ", (show . trimNulls) checkResult]
-                case (perfdataFromGearmanResult checkResult) of
+                logDebugN $ T.pack $ "Null trimmed data: " ++ (show . trimNulls) checkResult
+                case perfdataFromGearmanResult checkResult of
                     Left err -> do
                         logErrorN $ T.pack $ "Error parsing check result: " ++ err
                         return $ Left $ Just (L.pack err)
                     Right datum -> do
-                        logDebugN $ T.pack $ "Got datum: " ++ (show datum)
+                        logDebugN $ T.pack $ "Got datum: " ++ show datum
                         processDatum datum
-                        return $ Right "done")
+                        return $ Right "done"
   where
     clearBytes k d = decodeJob k $ L.toStrict d
     trimNulls :: S.ByteString -> S.ByteString
-    trimNulls = S.reverse . (S.dropWhile ((0 ==))) . S.reverse
+    trimNulls = S.reverse . S.dropWhile (0 ==) . S.reverse
 
 -- | Decodes a job's data packet using Base 64
 decodeJob :: Maybe AES -> S.ByteString -> Either String S.ByteString
-decodeJob k d = case (B64.decode d) of
+decodeJob k d = case B64.decode d of
     Right d' -> Right $ maybeDecrypt k d'
     Left e   -> Left e
 
@@ -65,7 +65,7 @@ setupGearman = do
     CollectorState{..} <- ask
     workFunc <- gearmanProcessDatum
     let opts@CollectorOptions{..} = collectorOpts
-    disconnectErrorBox <- liftIO $ newEmptyMVar
+    disconnectErrorBox <- liftIO newEmptyMVar
     replicateM_ optWorkerThreads $ setupConnection disconnectErrorBox workFunc opts
     forever $ do
         err <- liftIO $ takeMVar disconnectErrorBox

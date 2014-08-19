@@ -40,10 +40,9 @@ runCollector :: IO ()
 runCollector = do
     opts@CollectorOptions{..} <- parseOptions
     let logStartup = logInfoN $ T.pack $ concat ["Collector version ", show version, " starting."]
-    action <- if optGearmanMode then
-        return setupGearman
-    else
-        return handleLines
+    let action
+          | optGearmanMode = setupGearman
+          | otherwise = handleLines
     runCollector' opts (logStartup >> getInitialCache >> action >> writeCache)
   where
     runCollector' :: CollectorOptions -> Collector () -> IO ()
@@ -67,19 +66,19 @@ runCollector = do
                     return (logWarnN $ T.pack $ "Error setting up telemetry connection: " ++ show e, Nothing)
                 Right success -> return (return (), Just success)
         else
-            return (return (), Nothing)        
+            return (return (), Nothing)
         let state = CollectorState op aes files hashes conn
-        let (Collector setup)    = (aesLog >> connLog)
+        let (Collector setup)    = aesLog >> connLog
         let (Collector teardown) = cleanup
         runReaderT (setup >> act >> teardown) state
     connect :: String -> String -> IO (Either String Connection)
     connect host port = do
         sock <- N.socket N.AF_INET N.Stream 6 -- Create new ipv4 TCP socket.
         ai <- getHostAddress host port
-        case ai of 
-            Nothing -> return $ Left $ ("could not resolve address" ++ host)
+        case ai of
+            Nothing -> return $ Left $ "could not resolve address" ++ host
             Just x  -> do
-                N.connect sock $ (N.addrAddress x)
+                N.connect sock (N.addrAddress x)
                 return $ Right $ Connection host port sock
     cleanup :: Collector ()
     cleanup = do
@@ -90,11 +89,11 @@ runCollector = do
     getHostAddress :: String -> String -> IO (Maybe N.AddrInfo)
     getHostAddress host port = do
         ai <- N.getAddrInfo hints (Just host) (Just port)
-        case ai of 
+        case ai of
             (x:_) -> return $ Just x
             [] -> return Nothing
       where
-        hints = Just $ N.defaultHints { 
+        hints = Just $ N.defaultHints {
             N.addrProtocol = 6,
             N.addrFamily   = N.AF_INET,
             N.addrFlags    = [ N.AI_NUMERICSERV ]
@@ -105,7 +104,7 @@ telemetryOut output = do
     CollectorState{..} <- ask
     case collectorTelemetryConn of
         Nothing -> return ()
-        Just Connection{..} -> do        
+        Just Connection{..} -> do
             let expected = S.length output
             sent <- liftIO $ NBS.send sock output
             when (sent /= expected) $ logWarnN $ T.pack $ concat
@@ -118,7 +117,7 @@ writeCache = do
     let CollectorOptions{..} = collectorOpts
     cache <- liftIO $ readIORef collectorHashes
     let encodedCache = encodeCache cache
-    liftIO $ bracket (openFile optCacheFile WriteMode) (hClose) (\h -> L.hPut h encodedCache)
+    liftIO $ withFile optCacheFile WriteMode (`L.hPut` encodedCache)
 
 -- | Attempts to generate an initial cache of SourceDicts from the given file path
 -- If the file does not exist, or is improperly formatted returns an empty cache
@@ -128,7 +127,7 @@ getInitialCache = do
     let CollectorOptions{..} = collectorOpts
     let setup = openFile optCacheFile ReadWriteMode
     let teardown = hClose
-    let action = (\h -> runReaderT (unCollector $ readCache h) state)
+    let action h = runReaderT (unCollector $ readCache h) state
     initialCache <- liftIO $ bracket setup teardown action
     liftIO $ writeIORef collectorHashes initialCache
   where
@@ -143,12 +142,12 @@ getInitialCache = do
             Left e -> do
                 logWarnN $ T.pack $ concat ["Error decoding hash file: ", show e, " Continuing with empty initial cache"]
                 return emptyCache
-            Right cache -> do
+            Right cache ->
                 return cache
 
 -- | Loads the AES key from the given file path
 loadKey :: String -> IO (Either IOException AES)
-loadKey fname = try $ S.readFile fname >>= return . initAES . trim
+loadKey fname = try $ liftM (initAES . trim) (S.readFile fname)
   where
     trim = trim' . trim'
     trim' = S.reverse . S.dropWhile isBlank
@@ -162,16 +161,11 @@ processLine line = do
     CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
     logDebugN $ T.pack $ "Decoding line: " ++ show line
-    parsedDatum <- case perfdataFromDefaultTemplate line of
-        Left err -> do
-            logWarnN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
-            return Nothing
-        Right unnormalisedDatum -> return $ Just $ if (optNormalise)
-                                          then convertPerfdataToBase unnormalisedDatum
-                                          else unnormalisedDatum
-    case parsedDatum of
-        Nothing -> return ()
-        Just datum -> processDatum datum
+    case perfdataFromDefaultTemplate line of
+        Left err                -> logWarnN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
+        Right unnormalisedDatum -> processDatum $
+                                   if optNormalise then convertPerfdataToBase unnormalisedDatum
+                                   else unnormalisedDatum
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
 handleLines :: Collector ()

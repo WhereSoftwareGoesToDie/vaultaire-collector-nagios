@@ -31,11 +31,11 @@ queueDatumSourceDict datum = do
     CollectorState{..} <- ask
     let CollectorOptions{..} = collectorOpts
     hashes <- liftIO $ readIORef collectorHashes
-    let metrics = map (\(s, m) -> (s, metricUOM m)) $ perfdataMetrics datum
+    let metrics = map (second metricUOM) $ perfdataMetrics datum
     let (hashUpdates, sdUpdates) = unzip $ mapMaybe (getChanges optNormalise hashes) metrics
     let newHashes = fromList hashUpdates `union` hashes
     liftIO $ writeIORef collectorHashes newHashes
-    mapM_ (logDebugN . T.pack) (map (\x -> "Writing source dict: " ++ show x) sdUpdates)
+    mapM_ (logDebugN . T.pack . (\x -> "Writing source dict: " ++ show x)) sdUpdates
     mapM_ (uncurry $ maybeUpdate collectorSpoolFiles) sdUpdates
   where
     getChanges :: Bool -> Set Word64 -> (String, UOM) -> Maybe (Word64, (Address, Either String SourceDict))
