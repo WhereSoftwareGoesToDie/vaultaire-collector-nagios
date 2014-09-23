@@ -51,7 +51,7 @@ buildList datum metricName uom normalise = convert $ concat [baseList, counter, 
         | uom == Counter = [("_counter", "1")]
         | otherwise      = []
     unit
-        | normalise = [("_unit", "1")]
+        | normalise = [("_normalised", "1")]
         | otherwise = []
     isInteresting = (== metricName) . fst
     interestingThresholds = map snd $ filter isInteresting $ perfdatumToThresholds datum
