@@ -1,5 +1,5 @@
 name:                vaultaire-collector-nagios
-version:             3.3.1
+version:             3.3.2
 synopsis:            Vaultaire collector for Nagios perfdata
 homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
@@ -23,7 +23,7 @@ library
 
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
-                       marquise,
+                       marquise >= 2.8.2,
                        vaultaire-common,
                        gearman-haskell >= 0.2.0,
                        optparse-applicative,

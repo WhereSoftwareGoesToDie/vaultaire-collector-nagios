@@ -31,7 +31,6 @@ install:
   - 'git clone https://github.com/anchor/nagios-perfdata'
   - 'git clone https://github.com/anchor/gearman-haskell'
   - 'cd ..'
-  - 'cabal-$CABALVER install pipes-attoparsec'
   - 'cabal-$CABALVER sandbox add-source ./deps/vaultaire-common'
   - 'cabal-$CABALVER sandbox add-source ./deps/marquise'
   - 'cabal-$CABALVER sandbox add-source ./deps/nagios-perfdata'
