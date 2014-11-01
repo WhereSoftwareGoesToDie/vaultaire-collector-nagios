@@ -66,6 +66,7 @@ runCollector = do
         let (Collector setup)    = aesLog >> connLog
         let (Collector teardown) = cleanup
         runReaderT (setup >> act >> teardown) state
+
     connect :: String -> String -> IO (Either String Connection)
     connect host port = do
         sock <- N.socket N.AF_INET N.Stream 6 -- Create new ipv4 TCP socket.
@@ -75,12 +76,14 @@ runCollector = do
             Just x  -> do
                 N.connect sock (N.addrAddress x)
                 return $ Right $ Connection host port sock
+
     cleanup :: Collector ()
     cleanup = do
         CollectorState{..} <- ask
         case collectorTelemetryConn of
             Nothing -> return ()
             Just Connection{..} -> liftIO $ N.sClose sock
+
     getHostAddress :: String -> String -> IO (Maybe N.AddrInfo)
     getHostAddress host port = do
         ai <- N.getAddrInfo hints (Just host) (Just port)
