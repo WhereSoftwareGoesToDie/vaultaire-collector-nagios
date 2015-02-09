@@ -23,7 +23,7 @@ library
 
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
-                       marquise >= 2.8.2,
+                       marquise >= 2.8.2 && < 3.0.0,
                        vaultaire-common,
                        gearman-haskell >= 0.2.0,
                        optparse-applicative,
