@@ -13,12 +13,8 @@ cabal-version:       >=1.20
 
 library
   hs-source-dirs:      lib
-  exposed-modules:     Data.Nagios.Perfdata.Collector.State
-                       Data.Nagios.Perfdata.Collector.Util
-                       Data.Nagios.Perfdata.Collector.Options
-                       Data.Nagios.Perfdata.Collector.Gearman
-                       Data.Nagios.Perfdata.Collector.Process
-                       Data.Nagios.Perfdata.Collector.Rep
+  exposed-modules:     Vaultaire.Collector.Nagios.Types
+                       Vaultaire.Collector.Nagios.Process
   other-modules:       Paths_vaultaire_collector_nagios
 
   build-depends:       base >= 4.7,
@@ -44,6 +40,7 @@ library
                        transformers,
                        monad-logger,
                        fast-logger,
+                       vaultaire-collector-common,
                        network < 2.6
 
   default-language:    Haskell2010
