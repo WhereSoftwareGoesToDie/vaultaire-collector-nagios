@@ -1,27 +1,27 @@
 -- | Gearman specific stuff
 
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 module Data.Nagios.Perfdata.Collector.Gearman where
 
-import Data.Nagios.Perfdata.Collector.Process
-import Data.Nagios.Perfdata.Collector.Rep
+import           Data.Nagios.Perfdata.Collector.Process
+import           Data.Nagios.Perfdata.Collector.Rep
 
-import Control.Concurrent
-import Control.Monad
-import Control.Monad.IO.Class
-import Control.Monad.Logger
-import Control.Monad.Reader
-import Crypto.Cipher.AES
-import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Lazy.Char8 as L
-import qualified Data.ByteString as S
-import qualified Data.Text as T
+import           Control.Concurrent
+import           Control.Monad
+import           Control.Monad.IO.Class
+import           Control.Monad.Logger
+import           Control.Monad.Reader
+import           Crypto.Cipher.AES
+import qualified Data.ByteString                        as S
+import qualified Data.ByteString.Base64                 as B64
+import qualified Data.ByteString.Lazy.Char8             as L
+import qualified Data.Text                              as T
 
-import System.Gearman.Worker
-import System.Gearman.Connection
-import Data.Nagios.Perfdata
+import           Data.Nagios.Perfdata
+import           System.Gearman.Connection
+import           System.Gearman.Worker
 
 gearmanProcessDatum :: Collector WorkerFunc
 gearmanProcessDatum = do

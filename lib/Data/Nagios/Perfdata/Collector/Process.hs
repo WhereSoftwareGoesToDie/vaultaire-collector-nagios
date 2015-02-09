@@ -1,23 +1,23 @@
 -- | Does all the processing/queueing
 
-{-# LANGUAGE TupleSections   #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections   #-}
 
 module Data.Nagios.Perfdata.Collector.Process where
 
-import Data.Nagios.Perfdata.Collector.Rep
-import Data.Nagios.Perfdata.Collector.Util
+import           Data.Nagios.Perfdata.Collector.Rep
+import           Data.Nagios.Perfdata.Collector.Util
 
-import Control.Monad.IO.Class
-import Control.Monad.Logger
-import Control.Monad.Reader
-import Data.Bifunctor (second)
-import Data.Either (partitionEithers)
-import qualified Data.Text as T
+import           Control.Monad.IO.Class
+import           Control.Monad.Logger
+import           Control.Monad.Reader
+import           Data.Bifunctor                      (second)
+import           Data.Either                         (partitionEithers)
+import qualified Data.Text                           as T
 
-import Data.Nagios.Perfdata
-import Data.Nagios.Perfdata.Metric
-import Marquise.Client
+import           Data.Nagios.Perfdata
+import           Data.Nagios.Perfdata.Metric
+import           Marquise.Client
 
 -- | Queue updates to the metadata associated with each metric in the
 -- supplied perfdatum. Does not queue redundant updates

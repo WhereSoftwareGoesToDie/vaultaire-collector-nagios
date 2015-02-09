@@ -2,19 +2,19 @@
 
 module Data.Nagios.Perfdata.Collector.Util where
 
-import Data.Bifunctor (bimap, second)
-import Data.Binary.IEEE754 (doubleToWord)
-import qualified Data.ByteString as S
-import qualified Data.ByteString.Char8 as C
-import qualified Data.HashMap.Strict as HashMap(fromList)
-import Data.Monoid
-import qualified Data.Text as T
-import Data.Text (Text)
-import Data.Word
+import           Data.Bifunctor              (bimap, second)
+import           Data.Binary.IEEE754         (doubleToWord)
+import qualified Data.ByteString             as S
+import qualified Data.ByteString.Char8       as C
+import qualified Data.HashMap.Strict         as HashMap (fromList)
+import           Data.Monoid
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
+import           Data.Word
 
-import Data.Nagios.Perfdata
-import Data.Nagios.Perfdata.Metric
-import Marquise.Client
+import           Data.Nagios.Perfdata
+import           Data.Nagios.Perfdata.Metric
+import           Marquise.Client
 
 -- | Returns the Vaultaire SourceDict for the supplied metric in datum,
 -- or an error if the relevant values have invalid characters (',' or

@@ -1,32 +1,32 @@
 -- | IO and State
 
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Data.Nagios.Perfdata.Collector.State where
 
-import Data.Nagios.Perfdata.Collector.Gearman(setupGearman)
-import Data.Nagios.Perfdata.Collector.Options
-import Data.Nagios.Perfdata.Collector.Process
-import Data.Nagios.Perfdata.Collector.Rep
+import           Data.Nagios.Perfdata.Collector.Gearman (setupGearman)
+import           Data.Nagios.Perfdata.Collector.Options
+import           Data.Nagios.Perfdata.Collector.Process
+import           Data.Nagios.Perfdata.Collector.Rep
 
-import Control.Exception
-import Control.Monad.IO.Class
-import Control.Monad.Logger
-import Control.Monad.Reader
-import Crypto.Cipher.AES
-import qualified Data.ByteString as S
-import qualified Data.Text as T
-import qualified Network.Socket as N
-import qualified Network.Socket.ByteString as NBS
-import System.IO.Error
+import           Control.Exception
+import           Control.Monad.IO.Class
+import           Control.Monad.Logger
+import           Control.Monad.Reader
+import           Crypto.Cipher.AES
+import qualified Data.ByteString                        as S
+import qualified Data.Text                              as T
+import qualified Network.Socket                         as N
+import qualified Network.Socket.ByteString              as NBS
+import           System.IO.Error
 
-import Data.Nagios.Perfdata
-import Data.Nagios.Perfdata.Metric
-import Marquise.Client
+import           Data.Nagios.Perfdata
+import           Data.Nagios.Perfdata.Metric
+import           Marquise.Client
 
-import Paths_vaultaire_collector_nagios (version)
+import           Paths_vaultaire_collector_nagios       (version)
 
 -- | Core functions
 

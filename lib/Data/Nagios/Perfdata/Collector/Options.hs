@@ -2,9 +2,9 @@
 
 module Data.Nagios.Perfdata.Collector.Options where
 
-import Data.Nagios.Perfdata.Collector.Rep
+import           Data.Nagios.Perfdata.Collector.Rep
 
-import Options.Applicative
+import           Options.Applicative
 
 parseOptions :: IO CollectorOptions
 parseOptions = execParser optionParser
