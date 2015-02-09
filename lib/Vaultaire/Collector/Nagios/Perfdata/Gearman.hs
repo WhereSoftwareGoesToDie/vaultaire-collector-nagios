@@ -3,10 +3,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Data.Nagios.Perfdata.Collector.Gearman where
+module Vaultaire.Collector.Nagios.Perfdata.Gearman where
 
-import           Data.Nagios.Perfdata.Collector.Process
-import           Data.Nagios.Perfdata.Collector.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Process
+import           Vaultaire.Collector.Nagios.Perfdata.Rep
 
 import           Control.Concurrent
 import           Control.Monad

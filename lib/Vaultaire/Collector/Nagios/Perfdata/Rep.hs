@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards            #-}
 
-module Data.Nagios.Perfdata.Collector.Rep where
+module Vaultaire.Collector.Nagios.Perfdata.Rep where
 
 import           Control.Applicative
 import           Control.Monad.IO.Class

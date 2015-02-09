@@ -1,8 +1,8 @@
 -- | Options/Parsing
 
-module Data.Nagios.Perfdata.Collector.Options where
+module Vaultaire.Collector.Nagios.Perfdata.Options where
 
-import           Data.Nagios.Perfdata.Collector.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Rep
 
 import           Options.Applicative
 

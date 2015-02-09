@@ -3,10 +3,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections   #-}
 
-module Data.Nagios.Perfdata.Collector.Process where
+module Vaultaire.Collector.Nagios.Perfdata.Process where
 
-import           Data.Nagios.Perfdata.Collector.Rep
-import           Data.Nagios.Perfdata.Collector.Util
+import           Vaultaire.Collector.Nagios.Perfdata.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Util
 
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger

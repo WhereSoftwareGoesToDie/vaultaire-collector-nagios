@@ -4,12 +4,12 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
 
-module Data.Nagios.Perfdata.Collector.State where
+module Vaultaire.Collector.Nagios.Perfdata.State where
 
-import           Data.Nagios.Perfdata.Collector.Gearman (setupGearman)
-import           Data.Nagios.Perfdata.Collector.Options
-import           Data.Nagios.Perfdata.Collector.Process
-import           Data.Nagios.Perfdata.Collector.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Gearman (setupGearman)
+import           Vaultaire.Collector.Nagios.Perfdata.Options
+import           Vaultaire.Collector.Nagios.Perfdata.Process
+import           Vaultaire.Collector.Nagios.Perfdata.Rep
 
 import           Control.Exception
 import           Control.Monad.IO.Class
