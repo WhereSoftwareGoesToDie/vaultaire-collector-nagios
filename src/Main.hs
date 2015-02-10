@@ -8,7 +8,7 @@
 
 module Main where
 
-import           Data.Nagios.Perfdata.Collector.State
+import           Vaultaire.Collector.Nagios.Perfdata.State
 
 main :: IO ()
-main = runCollector
+main = runNagios

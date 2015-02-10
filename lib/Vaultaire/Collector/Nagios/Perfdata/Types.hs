@@ -1,7 +1,7 @@
 module Vaultaire.Collector.Nagios.Perfdata.Types where
 
 import           Crypto.Cipher.AES
-import qualified Network.Socket         as N
+import qualified Network.Socket                   as N
 
 import           Vaultaire.Collector.Common.Types
 

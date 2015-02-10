@@ -6,66 +6,54 @@
 
 module Vaultaire.Collector.Nagios.Perfdata.State where
 
-import           Vaultaire.Collector.Nagios.Perfdata.Gearman (setupGearman)
 import           Vaultaire.Collector.Nagios.Perfdata.Options
 import           Vaultaire.Collector.Nagios.Perfdata.Process
 import           Vaultaire.Collector.Nagios.Perfdata.Types
 
 import           Control.Exception
-import           Control.Monad.IO.Class
-import           Control.Monad.Logger
 import           Control.Monad.Reader
+import           Control.Monad.State
 import           Crypto.Cipher.AES
-import qualified Data.ByteString                        as S
-import qualified Data.Text                              as T
-import qualified Network.Socket                         as N
-import qualified Network.Socket.ByteString              as NBS
+import qualified Data.ByteString                             as S
+import qualified Network.Socket                              as N
+import qualified Network.Socket.ByteString                   as NBS
 import           System.IO.Error
+import           System.Log.Logger
 
 import           Data.Nagios.Perfdata
 import           Data.Nagios.Perfdata.Metric
-import           Marquise.Client
+import           Vaultaire.Collector.Common.Process
 
-import           Paths_vaultaire_collector_nagios       (version)
+import           Paths_vaultaire_collector_nagios            (version)
 
 -- | Core functions
 
 -- | Parses options off the command line, then runs the collector
 -- | or gearman collector daemon accordingly
-runCollector :: IO ()
-runCollector = do
-    opts@CollectorOptions{..} <- parseOptions
-    let logStartup = logInfoN $ T.pack $ concat ["Collector version ", show version, " starting."]
-    let action
-          | optGearmanMode = setupGearman
-          | otherwise = handleLines
-    runCollector' opts (logStartup >> action)
+runNagios :: IO ()
+runNagios = do
+    infoM "State.runNagios" $ concat ["Collector version ", show version, " starting."]
+    runCollectorN collectorOptions initialiseExtraState cleanup handleLines
   where
-    runCollector' :: CollectorOptions -> Collector () -> IO ()
-    runCollector' op@CollectorOptions{..} (Collector act) = do
-        files <- createSpoolFiles optNamespace
-        (aesLog, aes) <- if optGearmanMode
-        then do
-            key <- loadKey optKeyFile
-            case key of
-                Left e ->
-                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing)
-                Right k -> return (return (), Just k)
-        else
-            return (return (), Nothing)
-        (connLog, conn) <- if optTelemetry
-        then do
+    initialiseExtraState (_, NagiosOptions{..}) = do
+        conn <- if optTelemetry then do
             result <- connect optTelemetryHost optTelemetryPort
             case result of
-                Left e ->
-                    return (logWarnN $ T.pack $ "Error setting up telemetry connection: " ++ show e, Nothing)
-                Right success -> return (return (), Just success)
-        else
-            return (return (), Nothing)
-        let state = CollectorState op aes files conn
-        let (Collector setup)    = aesLog >> connLog
-        let (Collector teardown) = cleanup
-        runReaderT (setup >> act >> teardown) state
+                Left e -> do
+                    warningM "State.runNagios" $ "Error setting up telemetry connection: " ++ show e
+                    return Nothing
+                Right success -> return $ Just success
+                else return Nothing
+        return $ NagiosState Nothing conn
+--        (aesLog, aes) <- if optGearmanMode
+--        then do
+--            key <- loadKey optKeyFile
+--            case key of
+--                Left e ->
+--                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing)
+--                Right k -> return (return (), Just k)
+--        else
+--            return (return (), Nothing)
 
     connect :: String -> String -> IO (Either String Connection)
     connect host port = do
@@ -77,9 +65,9 @@ runCollector = do
                 N.connect sock (N.addrAddress x)
                 return $ Right $ Connection host port sock
 
-    cleanup :: Collector ()
+    cleanup :: Nagios ()
     cleanup = do
-        CollectorState{..} <- ask
+        (_, NagiosState{..}) <- get
         case collectorTelemetryConn of
             Nothing -> return ()
             Just Connection{..} -> liftIO $ N.sClose sock
@@ -97,15 +85,15 @@ runCollector = do
             N.addrFlags    = [ N.AI_NUMERICSERV ]
         }
 
-telemetryOut :: S.ByteString -> Collector ()
+telemetryOut :: S.ByteString -> Nagios ()
 telemetryOut output = do
-    CollectorState{..} <- ask
+    (_, NagiosState{..}) <- get
     case collectorTelemetryConn of
         Nothing -> return ()
         Just Connection{..} -> do
             let expected = S.length output
             sent <- liftIO $ NBS.send sock output
-            when (sent /= expected) $ logWarnN $ T.pack $ concat
+            when (sent /= expected) $ liftIO $ warningM "State.telemetryOut" $ concat
                 ["Telemetry send failed: only sent ", show sent, " bytes out of ", show expected]
 
 -- | Loads the AES key from the given file path
@@ -119,26 +107,24 @@ loadKey fname = try $ liftM (initAES . trim) (S.readFile fname)
 -- | Given a line formatted according to the standard Nagios perfdata
 -- template, a) queue it for writing to Vaultaire and b) queue an update
 -- for each metric's metadata.
-processLine :: S.ByteString -> Collector ()
+processLine :: S.ByteString -> Nagios ()
 processLine line = do
-    CollectorState{..} <- ask
-    let CollectorOptions{..} = collectorOpts
-    logDebugN $ T.pack $ "Decoding line: " ++ show line
+    (_, NagiosOptions{..}) <- ask
+    liftIO $ debugM "State.processLine" $ "Decoding line: " ++ show line
     case perfdataFromDefaultTemplate line of
-        Left err                -> logWarnN $ T.pack $ concat ["Error decoding perfdata (", show line, "): ", show err]
+        Left err                -> liftIO $ warningM "State.processLine" $ concat ["Error decoding perfdata (", show line, "): ", show err]
         Right unnormalisedDatum -> processDatum $
                                    if optNormalise then convertPerfdataToBase unnormalisedDatum
                                    else unnormalisedDatum
 
 -- | Read perfdata lines from stdin and queue them for writing to Vaultaire.
-handleLines :: Collector ()
+handleLines :: Nagios ()
 handleLines  = do
-    CollectorState{..} <- ask
-    let CollectorOptions{..} = collectorOpts
+    (_, NagiosOptions{..}) <- ask
     line <- liftIO $ try S.getLine
     case line of
         Left err ->
-            unless (isEOFError err) $ logErrorN $ T.pack $ "Error reading perfdata: " ++ show err
+            unless (isEOFError err) $ liftIO $ errorM "State.handleLines" $ "Error reading perfdata: " ++ show err
         Right l -> do
             processLine l
             handleLines
