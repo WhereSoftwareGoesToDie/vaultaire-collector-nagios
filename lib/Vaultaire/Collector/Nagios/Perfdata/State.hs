@@ -9,7 +9,7 @@ module Vaultaire.Collector.Nagios.Perfdata.State where
 import           Vaultaire.Collector.Nagios.Perfdata.Gearman (setupGearman)
 import           Vaultaire.Collector.Nagios.Perfdata.Options
 import           Vaultaire.Collector.Nagios.Perfdata.Process
-import           Vaultaire.Collector.Nagios.Perfdata.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Types
 
 import           Control.Exception
 import           Control.Monad.IO.Class

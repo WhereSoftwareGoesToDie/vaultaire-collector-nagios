@@ -5,7 +5,7 @@
 
 module Vaultaire.Collector.Nagios.Perfdata.Process where
 
-import           Vaultaire.Collector.Nagios.Perfdata.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Types
 import           Vaultaire.Collector.Nagios.Perfdata.Util
 
 import           Control.Monad.IO.Class

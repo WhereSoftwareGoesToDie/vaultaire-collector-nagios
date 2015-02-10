@@ -2,7 +2,7 @@
 
 module Vaultaire.Collector.Nagios.Perfdata.Options where
 
-import           Vaultaire.Collector.Nagios.Perfdata.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Types
 
 import           Options.Applicative
 import           System.Log.Logger

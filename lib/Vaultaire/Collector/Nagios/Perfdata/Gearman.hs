@@ -6,7 +6,7 @@
 module Vaultaire.Collector.Nagios.Perfdata.Gearman where
 
 import           Vaultaire.Collector.Nagios.Perfdata.Process
-import           Vaultaire.Collector.Nagios.Perfdata.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Types
 
 import           Control.Concurrent
 import           Control.Monad
