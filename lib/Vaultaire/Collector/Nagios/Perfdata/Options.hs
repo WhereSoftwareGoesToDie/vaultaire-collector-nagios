@@ -5,6 +5,7 @@ module Vaultaire.Collector.Nagios.Perfdata.Options where
 import           Vaultaire.Collector.Nagios.Perfdata.Rep
 
 import           Options.Applicative
+import           System.Log.Logger
 
 parseOptions :: IO CollectorOptions
 parseOptions = execParser optionParser
@@ -27,10 +28,10 @@ collectorOptions = CollectorOptions
          <> value "perfdata"
          <> metavar "MARQUISE-NAMESPACE"
          <> help "Marquise namespace to write to. Must be unique on a host basis.")
-    <*> (read <$> strOption
+    <*> flag WARNING DEBUG
         (long "log-verbosity"
          <> short 'v'
-         <> help "Verbosity level at which to write log output"))
+         <> help "Verbosity level at which to write log output")
     <*> switch
         (long "normalise-metrics"
          <> short 's'
