@@ -16,17 +16,17 @@ library
   exposed-modules:     Vaultaire.Collector.Nagios.Perfdata.State
                        Vaultaire.Collector.Nagios.Perfdata.Util
                        Vaultaire.Collector.Nagios.Perfdata.Options
-                       Vaultaire.Collector.Nagios.Perfdata.Gearman
                        Vaultaire.Collector.Nagios.Perfdata.Process
-                       Vaultaire.Collector.Nagios.Perfdata.Rep
+                       Vaultaire.Collector.Nagios.Perfdata.Types
   other-modules:       Paths_vaultaire_collector_nagios
 
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
-                       marquise >= 2.8.2 && < 3.0.0,
+                       marquise,
                        vaultaire-common,
+                       vaultaire-collector-common,
                        gearman-haskell >= 0.2.0,
-                       optparse-applicative,
+                       optparse-applicative >= 0.11.0,
                        bytestring >= 0.10.2,
                        cereal,
                        mtl,
@@ -44,6 +44,7 @@ library
                        transformers,
                        monad-logger,
                        fast-logger,
+                       hslogger,
                        network < 2.6
 
   default-language:    Haskell2010
