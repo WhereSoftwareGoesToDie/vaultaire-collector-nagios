@@ -15,6 +15,7 @@ library
   hs-source-dirs:      lib
   exposed-modules:     Vaultaire.Collector.Nagios.Perfdata.State
                        Vaultaire.Collector.Nagios.Perfdata.Util
+                       Vaultaire.Collector.Nagios.Perfdata.Gearman
                        Vaultaire.Collector.Nagios.Perfdata.Options
                        Vaultaire.Collector.Nagios.Perfdata.Process
                        Vaultaire.Collector.Nagios.Perfdata.Types
@@ -24,7 +25,7 @@ library
                        nagios-perfdata >= 0.2.0,
                        marquise,
                        vaultaire-common,
-                       vaultaire-collector-common,
+                       vaultaire-collector-common >= 0.5.0,
                        gearman-haskell >= 0.2.0,
                        optparse-applicative >= 0.11.0,
                        bytestring >= 0.10.2,

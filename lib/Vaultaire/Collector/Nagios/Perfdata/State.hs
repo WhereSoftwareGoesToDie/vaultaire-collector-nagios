@@ -6,6 +6,7 @@
 
 module Vaultaire.Collector.Nagios.Perfdata.State where
 
+import           Vaultaire.Collector.Nagios.Perfdata.Gearman
 import           Vaultaire.Collector.Nagios.Perfdata.Options
 import           Vaultaire.Collector.Nagios.Perfdata.Process
 import           Vaultaire.Collector.Nagios.Perfdata.Types
@@ -31,11 +32,16 @@ import           Paths_vaultaire_collector_nagios            (version)
 -- | Parses options off the command line, then runs the collector
 -- | or gearman collector daemon accordingly
 runNagios :: IO ()
-runNagios = do
-    infoM "State.runNagios" $ concat ["Collector version ", show version, " starting."]
-    runCollectorN collectorOptions initialiseExtraState cleanup handleLines
+runNagios = runCollectorN collectorOptions initialiseExtraState cleanup collect
   where
+    collect = do
+        (_, NagiosOptions{..}) <- ask
+        if optGearmanMode then
+            setupGearman
+        else
+            handleLines
     initialiseExtraState (_, NagiosOptions{..}) = do
+        infoM "State.runNagios" $ concat ["Collector version ", show version, " starting."]
         conn <- if optTelemetry then do
             result <- connect optTelemetryHost optTelemetryPort
             case result of
@@ -44,17 +50,15 @@ runNagios = do
                     return Nothing
                 Right success -> return $ Just success
                 else return Nothing
-        return $ NagiosState Nothing conn
---        (aesLog, aes) <- if optGearmanMode
---        then do
---            key <- loadKey optKeyFile
---            case key of
---                Left e ->
---                    return (logWarnN $ T.pack $ "Error loading key: " ++ show e, Nothing)
---                Right k -> return (return (), Just k)
---        else
---            return (return (), Nothing)
-
+        aes <- if optGearmanMode then do
+            key <- loadKey optKeyFile
+            case key of
+                Left e -> do
+                    warningM "State.runNagios" $ "Error loading key: " ++ show e
+                    return Nothing
+                Right k -> return $ Just k
+                else return Nothing
+        return $ NagiosState aes conn
     connect :: String -> String -> IO (Either String Connection)
     connect host port = do
         sock <- N.socket N.AF_INET N.Stream 6 -- Create new ipv4 TCP socket.
