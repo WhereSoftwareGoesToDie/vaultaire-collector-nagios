@@ -1,5 +1,5 @@
 name:                vaultaire-collector-nagios
-version:             3.3.2
+version:             3.4.0
 synopsis:            Vaultaire collector for Nagios perfdata
 homepage:            https://github.com/anchor/vaultaire-collector-nagios
 license:             BSD3
@@ -13,20 +13,21 @@ cabal-version:       >=1.20
 
 library
   hs-source-dirs:      lib
-  exposed-modules:     Data.Nagios.Perfdata.Collector.State
-                       Data.Nagios.Perfdata.Collector.Util
-                       Data.Nagios.Perfdata.Collector.Options
-                       Data.Nagios.Perfdata.Collector.Gearman
-                       Data.Nagios.Perfdata.Collector.Process
-                       Data.Nagios.Perfdata.Collector.Rep
+  exposed-modules:     Vaultaire.Collector.Nagios.Perfdata.State
+                       Vaultaire.Collector.Nagios.Perfdata.Util
+                       Vaultaire.Collector.Nagios.Perfdata.Gearman
+                       Vaultaire.Collector.Nagios.Perfdata.Options
+                       Vaultaire.Collector.Nagios.Perfdata.Process
+                       Vaultaire.Collector.Nagios.Perfdata.Types
   other-modules:       Paths_vaultaire_collector_nagios
 
   build-depends:       base >= 4.7,
                        nagios-perfdata >= 0.2.0,
-                       marquise >= 2.8.2,
+                       marquise,
                        vaultaire-common,
+                       vaultaire-collector-common >= 0.5.0,
                        gearman-haskell >= 0.2.0,
-                       optparse-applicative,
+                       optparse-applicative >= 0.11.0,
                        bytestring >= 0.10.2,
                        cereal,
                        mtl,
@@ -44,6 +45,7 @@ library
                        transformers,
                        monad-logger,
                        fast-logger,
+                       hslogger,
                        network < 2.6
 
   default-language:    Haskell2010

@@ -1,16 +1,16 @@
 -- | Options/Parsing
 
-module Data.Nagios.Perfdata.Collector.Options where
+module Vaultaire.Collector.Nagios.Perfdata.Options where
 
-import Data.Nagios.Perfdata.Collector.Rep
+import           Vaultaire.Collector.Nagios.Perfdata.Types
 
-import Options.Applicative
+import           Options.Applicative
 
-parseOptions :: IO CollectorOptions
+parseOptions :: IO NagiosOptions
 parseOptions = execParser optionParser
 
 -- | Parser which include all help info
-optionParser :: ParserInfo CollectorOptions
+optionParser :: ParserInfo NagiosOptions
 optionParser =
     info (helper <*> collectorOptions)
     (fullDesc <>
@@ -19,19 +19,9 @@ optionParser =
     )
 
 -- | The parser for all options for nagios-perfdata
-collectorOptions :: Parser CollectorOptions
-collectorOptions = CollectorOptions
-    <$> strOption
-        (long "marquise-namespace"
-         <> short 'n'
-         <> value "perfdata"
-         <> metavar "MARQUISE-NAMESPACE"
-         <> help "Marquise namespace to write to. Must be unique on a host basis.")
-    <*> (read <$> strOption
-        (long "log-verbosity"
-         <> short 'v'
-         <> help "Verbosity level at which to write log output"))
-    <*> switch
+collectorOptions :: Parser NagiosOptions
+collectorOptions = NagiosOptions
+    <$> switch
         (long "normalise-metrics"
          <> short 's'
          <> help "Normalise metrics to base SI units")
@@ -51,12 +41,6 @@ collectorOptions = CollectorOptions
          <> value "4730"
          <> metavar "GEARMANPORT"
          <> help "Port number Gearman server is listening on.")
-    <*> option
-        (long "workers"
-         <> short 'w'
-         <> metavar "WORKERS"
-         <> value 2
-         <> help "Number of worker threads to run.")
     <*> strOption
         (long "function-name"
          <> short 'f'
